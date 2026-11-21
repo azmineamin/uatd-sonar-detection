@@ -8,7 +8,9 @@ Predictions: a COCO results list ``[{"image_id", "category_id", "bbox": [x, y, w
 
 Reports mAP@[.5:.95], mAP50, mAP75, AP_s/m/l, AR@1/10/100, per-class AP50 and
 AP50:95, and AP on UATD-relative size bins when ``configs/eval.yaml`` defines them
-(frozen in roadmap step 3).
+(frozen in roadmap step 3). Also P, R and F1 with the Ultralytics definition used for
+the CLAUDE.md Section 5 baseline (IoU 0.5, at the confidence of maximum mean F1; see
+``uatd.pr_f1``), overall and per class.
 """
 
 from __future__ import annotations
@@ -24,6 +26,8 @@ import numpy as np
 import yaml
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+
+from uatd.pr_f1 import precision_recall_f1
 
 STAT_NAMES = (
     "mAP50_95",
@@ -83,7 +87,11 @@ def evaluate(gt_path: Path, predictions: list[dict], size_bins: dict | None = No
     }
     if not preds:
         result.update({k: 0.0 for k in STAT_NAMES})
+        result.update(P=0.0, R=0.0, F1=0.0, conf_at_max_F1=0.0)
         return result
+
+    prf = precision_recall_f1(gt.dataset, preds)
+    result.update({k: prf[k] for k in ("P", "R", "F1", "conf_at_max_F1")})
 
     with contextlib.redirect_stdout(io.StringIO()):
         dt = gt.loadRes(copy.deepcopy(preds))
@@ -100,6 +108,7 @@ def evaluate(gt_path: Path, predictions: list[dict], size_bins: dict | None = No
             "AP50": _mean_valid(prec[iou50, :, k, 0, -1]),
             "AP50_95": _mean_valid(prec[:, :, k, 0, -1]),
             "num_gt": len(gt.getAnnIds(catIds=[cat_id])),
+            **{k: prf["per_class"].get(cat_id, {}).get(k, 0.0) for k in ("P", "R", "F1")},
         }
     result["per_class"] = per_class
 
@@ -130,10 +139,15 @@ def evaluate(gt_path: Path, predictions: list[dict], size_bins: dict | None = No
 def format_summary(m: dict) -> str:
     lines = [
         f"images {m['num_images']}  gt {m['num_gt']}  preds {m['num_predictions']}",
-        "  ".join(f"{k} {m[k]:.4f}" for k in ("mAP50", "mAP75", "mAP50_95", "AR100")),
+        "  ".join(
+            f"{k} {m[k]:.4f}" for k in ("P", "R", "F1", "mAP50", "mAP75", "mAP50_95", "AR100")
+        ),
     ]
     for name, v in m.get("per_class", {}).items():
-        lines.append(f"  {name:13s} AP50 {v['AP50']:.4f}  AP50:95 {v['AP50_95']:.4f}")
+        lines.append(
+            f"  {name:13s} P {v['P']:.4f}  R {v['R']:.4f}  "
+            f"AP50 {v['AP50']:.4f}  AP50:95 {v['AP50_95']:.4f}"
+        )
     for name, v in m.get("size_bins", {}).items():
         lines.append(
             f"  [{name}] AP50 {v['AP50']:.4f}  AP50:95 {v['AP50_95']:.4f}  n={v['num_gt']}"

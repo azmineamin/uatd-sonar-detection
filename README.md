@@ -77,6 +77,9 @@ a `done` run is never retrained. On Kaggle, use [`notebooks/kaggle_runner.ipynb`
 
 **Evaluation.** `python -m uatd.eval_coco --gt <coco/split.json> --pred <predictions.json>` reports COCO mAP,
 mAP50/75, AP_s/m/l, AR, per-class AP and (once `configs/eval.yaml` is frozen) UATD-relative size bins.
+It also reports P, R and F1 with the Ultralytics definition used for the YOLO26n baseline (IoU 0.5, at the
+confidence of maximum mean F1), so every model's P/R is comparable; `tests/test_eval.py` checks it against
+Ultralytics' own code.
 
 ## Classes
 
