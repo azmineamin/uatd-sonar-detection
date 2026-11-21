@@ -108,7 +108,8 @@ def evaluate(gt_path: Path, predictions: list[dict], size_bins: dict | None = No
             "AP50": _mean_valid(prec[iou50, :, k, 0, -1]),
             "AP50_95": _mean_valid(prec[:, :, k, 0, -1]),
             "num_gt": len(gt.getAnnIds(catIds=[cat_id])),
-            **{k: prf["per_class"].get(cat_id, {}).get(k, 0.0) for k in ("P", "R", "F1")},
+            # P/R/F1 are undefined (nan) for a class with no ground truth in this split
+            **{k: prf["per_class"].get(cat_id, {}).get(k, float("nan")) for k in ("P", "R", "F1")},
         }
     result["per_class"] = per_class
 

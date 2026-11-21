@@ -1,7 +1,7 @@
 """Train RF-DETR (ICLR 2026) on the fixed UATD split, resumably.
 
     python scripts/train_rfdetr.py --data data/processed --model small --epochs 100 \\
-        --batch 8 --grad-accum 2 --seed 0 --time-budget-hours 10.5
+        --batch 4 --grad-accum 4 --seed 0 --time-budget-hours 10.5
 
 Run directory: ``<runs-dir>/<exp>/`` (default ``runs/rfdetr/<model>_r<res>_s<seed>``).
 
@@ -70,8 +70,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--model", choices=MODELS, default="small")
     ap.add_argument("--resolution", type=int, help="default: the model's native resolution")
     ap.add_argument("--epochs", type=int, default=100)
-    ap.add_argument("--batch", type=int, default=8)
-    ap.add_argument("--grad-accum", type=int, default=2)
+    ap.add_argument("--batch", type=int, default=4)
+    ap.add_argument("--grad-accum", type=int, default=4)
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--lr-encoder", type=float, default=1.5e-4)
     ap.add_argument("--patience", type=int, default=15, help="early stopping on val mAP")

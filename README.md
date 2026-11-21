@@ -75,7 +75,7 @@ scored on `test1` and `test2` with the shared evaluator. Test images are never u
 
 ```bash
 pip install -e ".[rfdetr]"
-python scripts/train_rfdetr.py --data data/processed --model small --epochs 100 --batch 8 --grad-accum 2 --seed 0
+python scripts/train_rfdetr.py --data data/processed --model small --epochs 100 --batch 4 --grad-accum 4 --seed 0
 python scripts/predict_rfdetr.py --run runs/rfdetr/small_r512_s0 --data data/processed
 # quick CPU check: add --device cpu --smoke to the training command
 ```
