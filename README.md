@@ -85,9 +85,9 @@ mAP50/75, AP_s/m/l, AR, per-class AP and (once `configs/eval.yaml` is frozen) UA
 ## Roadmap
 
 - [x] 1. Scaffold (layout, `pyproject.toml`, `.gitignore`, pre-commit/ruff)
-- [ ] 2. Split and convert: committed manifests, YOLO + COCO views, exact-count tests
+- [x] 2. Split and convert: committed manifests, YOLO + COCO views, exact-count tests
   - [x] manifests built from the figshare data, all Section 4.3 numbers verified (`tests/test_splits.py`)
-  - [ ] full `uatd.convert` run on Kaggle (converter so far tested on synthetic data only)
+  - [x] split re-verified on the extracted BMPs; full `uatd.convert` run (9,189 images) matches all counts
 - [ ] 3. Dataset analysis; freeze the tiny-object threshold in `configs/eval.yaml`
 - [ ] 4. Shared COCO evaluator + efficiency tooling
   - [x] `uatd.eval_coco` (COCO metrics, per-class AP, size bins), tested
