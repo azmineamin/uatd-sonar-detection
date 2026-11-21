@@ -65,6 +65,8 @@ across folders. COCO `category_id` = YOLO class ID (0–9).
 
 - [x] 1. Scaffold (layout, `pyproject.toml`, `.gitignore`, pre-commit/ruff)
 - [ ] 2. Split and convert: committed manifests, YOLO + COCO views, exact-count tests
+  - [x] manifests built from the figshare data, all Section 4.3 numbers verified (`tests/test_splits.py`)
+  - [ ] full `uatd.convert` run on Kaggle (converter so far tested on synthetic data only)
 - [ ] 3. Dataset analysis; freeze the tiny-object threshold in `configs/eval.yaml`
 - [ ] 4. Shared COCO evaluator + efficiency tooling
 - [ ] 5. Main pipeline: RF-DETR (ICLR 2026) N/S

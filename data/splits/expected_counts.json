@@ -1,0 +1,167 @@
+{
+  "seed": 42,
+  "val_fraction": 0.1,
+  "class_names": [
+    "ball",
+    "circle cage",
+    "cube",
+    "cylinder",
+    "human body",
+    "metal bucket",
+    "plane",
+    "rov",
+    "square cage",
+    "tyre"
+  ],
+  "splits": {
+    "train": {
+      "source_folder": "UATD_Training",
+      "images_before_cleaning": 6840,
+      "images": 6835,
+      "objects": 11059,
+      "per_class": {
+        "ball": 2733,
+        "circle cage": 606,
+        "cube": 2390,
+        "cylinder": 512,
+        "human body": 1163,
+        "metal bucket": 426,
+        "plane": 730,
+        "rov": 629,
+        "square cage": 868,
+        "tyre": 1002
+      },
+      "dropped": [
+        {
+          "stem": "02630",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "00707",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "00402",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "02477",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "06975",
+          "reason": "invalid_object: zero_area_box"
+        }
+      ],
+      "cleaning_events": {
+        "clipped_box": 2,
+        "objects": 11067,
+        "reversed_box_swapped": 6,
+        "zero_area_box": 5
+      }
+    },
+    "val": {
+      "source_folder": "UATD_Training",
+      "images_before_cleaning": 760,
+      "images": 758,
+      "objects": 1237,
+      "per_class": {
+        "ball": 337,
+        "circle cage": 55,
+        "cube": 254,
+        "cylinder": 52,
+        "human body": 120,
+        "metal bucket": 50,
+        "plane": 65,
+        "rov": 71,
+        "square cage": 111,
+        "tyre": 122
+      },
+      "dropped": [
+        {
+          "stem": "02589",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "00438",
+          "reason": "invalid_object: zero_area_box"
+        }
+      ],
+      "cleaning_events": {
+        "objects": 1240,
+        "reversed_box_swapped": 2,
+        "zero_area_box": 2
+      }
+    },
+    "test1": {
+      "source_folder": "UATD_Test_1",
+      "images_before_cleaning": 800,
+      "images": 798,
+      "objects": 1169,
+      "per_class": {
+        "ball": 197,
+        "circle cage": 98,
+        "cube": 172,
+        "cylinder": 48,
+        "human body": 76,
+        "metal bucket": 6,
+        "plane": 134,
+        "rov": 150,
+        "square cage": 167,
+        "tyre": 121
+      },
+      "dropped": [
+        {
+          "stem": "00247",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "00614",
+          "reason": "invalid_object: zero_area_box"
+        }
+      ],
+      "cleaning_events": {
+        "objects": 1172,
+        "zero_area_box": 2
+      }
+    },
+    "test2": {
+      "source_folder": "UATD_Test_2",
+      "images_before_cleaning": 800,
+      "images": 798,
+      "objects": 1154,
+      "per_class": {
+        "ball": 193,
+        "circle cage": 99,
+        "cube": 166,
+        "cylinder": 45,
+        "human body": 73,
+        "metal bucket": 5,
+        "plane": 135,
+        "rov": 150,
+        "square cage": 168,
+        "tyre": 120
+      },
+      "dropped": [
+        {
+          "stem": "00065",
+          "reason": "invalid_object: zero_area_box"
+        },
+        {
+          "stem": "00754",
+          "reason": "invalid_object: zero_area_box"
+        }
+      ],
+      "cleaning_events": {
+        "objects": 1160,
+        "zero_area_box": 3
+      }
+    }
+  },
+  "cleaning_events": {
+    "clipped_box": 2,
+    "objects": 14639,
+    "reversed_box_swapped": 8,
+    "zero_area_box": 12
+  }
+}
