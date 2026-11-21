@@ -110,3 +110,22 @@ def test_manifest_mismatch_is_an_error(raw_root: Path, built: Path, tmp_path: Pa
     )
     with pytest.raises(ValueError, match="fails cleaning"):
         convert.convert_split("test2", raw_root, tmp_path / "p", built)
+
+
+def test_nested_kaggle_layout(raw_root: Path, tmp_path: Path):
+    """Kaggle unzips to <root>/UATD_Test_1/UATD_Test_1/{images,annotations}; must still work."""
+    import shutil
+
+    nested = tmp_path / "kaggle_input"
+    for folder in RAW_FOLDERS:
+        shutil.copytree(raw_root / folder, nested / folder / folder)
+    flat_manifests, flat_report = splits.build(index_local(raw_root))
+    nested_manifests, nested_report = splits.build(index_local(nested))
+    assert nested_report == flat_report
+    assert {s: [e.line for e in v] for s, v in nested_manifests.items()} == {
+        s: [e.line for e in v] for s, v in flat_manifests.items()
+    }
+    out = tmp_path / "splits_nested"
+    splits.write(nested_manifests, nested_report, out)
+    rep = convert.convert_split("test1", nested, tmp_path / "proc", out, mode="copy")
+    assert rep["images"] == nested_report["splits"]["test1"]["images"]
