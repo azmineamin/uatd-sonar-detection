@@ -126,7 +126,7 @@ def evaluate(gt_path: Path, predictions: list[dict], size_bins: dict | None = No
                     sum(
                         1
                         for an in gt.dataset["annotations"]
-                        if rngs[a][0] <= an["area"] < rngs[a][1]
+                        if rngs[a][0] <= an["area"] <= rngs[a][1]  # inclusive, like pycocotools
                     )
                 ),
             }

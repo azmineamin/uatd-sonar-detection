@@ -45,6 +45,17 @@ python -m uatd.splits --raw-root /kaggle/input/datasets/mridhafahadhossain/uatd-
 python -m uatd.splits --remote --cache data/raw/uatd_index.json.gz --out /tmp/splits
 ```
 
+## Dataset facts (from `python -m uatd.stats`, see [`results/dataset_stats/`](results/dataset_stats/))
+
+- Images are tall and vary in size: width 512 or 1024 px, height 1024–2047 px (median 1024×1438), 224 distinct sizes in train.
+- 1–3 objects per image. Median box about 58×62 px, only 0.3 % of the image area.
+- COCO's absolute bins put 94 % of boxes in "medium", so they say little here. We use a UATD-relative
+  **tiny** bin: box area ≤ 2,300 px² (about 48×48 px), the 25th percentile of train box areas, frozen in
+  [`configs/eval.yaml`](configs/eval.yaml). Tiny share: train 25 %, val 25 %, test1 20 %, test2 18 %.
+- Square resizing (as RF-DETR does) squashes boxes vertically: at 512×512 the median box is about 38×21 px,
+  and the smallest 5 % are under 14 px tall.
+- 6 train/val boxes are implausibly small (e.g. 3×1 px); they pass the fixed cleaning rules and are kept.
+
 ## Convert to YOLO / COCO
 
 ```bash
@@ -91,7 +102,7 @@ Ultralytics' own code.
 - [x] 2. Split and convert: committed manifests, YOLO + COCO views, exact-count tests
   - [x] manifests built from the figshare data, all Section 4.3 numbers verified (`tests/test_splits.py`)
   - [x] split re-verified on the extracted BMPs; full `uatd.convert` run (9,189 images) matches all counts
-- [ ] 3. Dataset analysis; freeze the tiny-object threshold in `configs/eval.yaml`
+- [x] 3. Dataset analysis; freeze the tiny-object threshold in `configs/eval.yaml`
 - [ ] 4. Shared COCO evaluator + efficiency tooling
   - [x] `uatd.eval_coco` (COCO metrics, per-class AP, size bins), tested
   - [ ] efficiency (params, GFLOPs, T4 latency)
@@ -108,7 +119,7 @@ Ultralytics' own code.
 ```
 configs/       data and experiment configs
 data/splits/   committed split manifests + expected_counts.json
-src/uatd/      package: constants, voc (cleaning rules), rawindex, splits, convert
+src/uatd/      package: constants, voc (cleaning rules), rawindex, splits, convert, stats, eval_coco, pr_f1
 tests/         pytest suite (exact split numbers, cleaning rules, converter)
 scripts/       training / evaluation entry points
 notebooks/     thin Kaggle runner
