@@ -1,0 +1,37 @@
+# data (only data/splits/ is committed)
+data/raw/
+data/processed/
+*.bmp
+*.zip
+
+# runs, weights, logs
+runs/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.ckpt
+wandb/
+mlruns/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# secrets
+.env
+kaggle.json

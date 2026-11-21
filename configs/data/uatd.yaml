@@ -1,0 +1,16 @@
+# Dataset config. Paths are relative to the repo root; override with CLI flags.
+raw_root: data/raw/uatd            # contains UATD_Training/, UATD_Test_1/, UATD_Test_2/
+# On Kaggle: /kaggle/input/datasets/mridhafahadhossain/uatd-dataset
+processed_root: data/processed
+splits_dir: data/splits
+class_names:                        # order = class IDs 0-9
+  - ball
+  - circle cage
+  - cube
+  - cylinder
+  - human body
+  - metal bucket
+  - plane
+  - rov
+  - square cage
+  - tyre
