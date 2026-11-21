@@ -1,6 +1,6 @@
 # data (only data/splits/ is committed)
 data/raw/
-data/processed/
+data/processed*/
 *.bmp
 *.zip
 

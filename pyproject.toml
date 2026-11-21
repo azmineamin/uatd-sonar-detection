@@ -20,7 +20,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6", "pre-commit>=3.5"]
-# Track extras (rfdetr, yolo, dome, deim) are added with exact pins once each
+# RF-DETR (Robinson et al., ICLR 2026), main pipeline. Pinned; training stack = PyTorch Lightning.
+rfdetr = ["rfdetr[train]==1.12.1"]
+# Further track extras (yolo, dome, deim) are added with exact pins once each
 # install is verified on Kaggle with a --smoke run (CLAUDE.md, Section 7).
 
 [tool.setuptools.packages.find]

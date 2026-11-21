@@ -69,7 +69,7 @@ def place_image(src: Path, dst_stem: Path, mode: str) -> Path:
         shutil.copy2(src, dst)
     elif mode == "png":
         with Image.open(src) as im:
-            im.save(dst, format="PNG", optimize=False)
+            im.save(dst, format="PNG", compress_level=1)  # lossless; fast to write
     else:
         raise ValueError(f"unknown link mode {mode!r}")
     return dst
@@ -195,10 +195,11 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--splits-dir", type=Path, default=DEFAULT_SPLITS_DIR)
     ap.add_argument("--splits", nargs="+", default=list(SPLITS), choices=SPLITS)
     ap.add_argument("--link-mode", default="symlink", choices=LINK_MODES)
-    ap.add_argument("--smoke", action="store_true", help="only the first 8 images per split")
+    ap.add_argument("--limit", type=int, help="only the first N images per split")
+    ap.add_argument("--smoke", action="store_true", help="same as --limit 6")
     args = ap.parse_args(argv)
 
-    limit = 8 if args.smoke else None
+    limit = 6 if args.smoke else args.limit
     report = {}
     for split in args.splits:
         report[split] = convert_split(
@@ -209,7 +210,7 @@ def main(argv: list[str] | None = None) -> None:
         )
     write_yolo_yaml(args.out)
     (args.out / "convert_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-    if not args.smoke:
+    if limit is None:
         check_against_expected(report, args.splits_dir)
         print("counts match data/splits/expected_counts.json")
 
