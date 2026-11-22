@@ -1,0 +1,20 @@
+\begin{tabular}{p{3.6cm}p{10.4cm}}
+\toprule
+Setting & Value \\
+\midrule
+Model & RFDETRSmall (pretrained: rf-detr-small.pth) \\
+Encoder & dinov2\_windowed\_small (DINOv2, windowed), patch 16 \\
+Decoder & 3 layers, hidden 256, 300 queries, two-stage \\
+Input resolution & 512 $\times$ 512 (square resize) \\
+Epochs & 100 max; early stopping patience 15 (min delta 0.001) \\
+Batch & 8 $\times$ grad. accumulation 2 (effective 16) \\
+Optimizer & AdamW; lr 0.0001, encoder lr 0.00015, weight decay 0.0001 \\
+LR decay & layer-wise ViT decay 0.8, component decay 0.7 \\
+EMA & decay 0.993, tau 100 \\
+Augmentation & RF-DETR defaults: multi-scale (per batch), scale jitter, horizontal flip \\
+Gradient clipping & max norm 0.1 \\
+Precision & mixed (AMP, fp16 on T4) \\
+Seed & 0 \\
+Checkpoint selection & best val mAP50:95 (RF-DETR built-in evaluator) \\
+\bottomrule
+\end{tabular}
