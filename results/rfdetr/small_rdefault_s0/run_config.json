@@ -1,0 +1,60 @@
+{
+  "pipeline": "RF-DETR (Robinson et al., ICLR 2026)",
+  "model": "RFDETRSmall",
+  "resolution": 512,
+  "args": {
+    "data": "/tmp/uatd_processed",
+    "model": "small",
+    "resolution": null,
+    "epochs": 100,
+    "batch": 8,
+    "grad_accum": 2,
+    "lr": 0.0001,
+    "lr_encoder": 0.00015,
+    "patience": 15,
+    "seed": 0,
+    "device": "cuda",
+    "num_workers": 2,
+    "checkpoint_interval": 10,
+    "time_budget_hours": 9.48,
+    "runs_dir": "/kaggle/working/runs/rfdetr",
+    "exp": "small_rdefault_s0",
+    "tensorboard": false,
+    "smoke": false
+  },
+  "train_kwargs": {
+    "dataset_dir": "/tmp/uatd_processed/rfdetr",
+    "output_dir": "/kaggle/working/runs/rfdetr/small_rdefault_s0",
+    "epochs": 100,
+    "batch_size": 8,
+    "grad_accum_steps": 2,
+    "lr": 0.0001,
+    "lr_encoder": 0.00015,
+    "seed": 0,
+    "device": "cuda",
+    "num_workers": 2,
+    "checkpoint_interval": 10,
+    "early_stopping": true,
+    "early_stopping_patience": 15,
+    "tensorboard": false,
+    "progress_bar": "tqdm",
+    "run_test": false
+  },
+  "git": {
+    "commit": "24b361eb01a40f9216a0ca13469962f3214481d9",
+    "dirty": false
+  },
+  "env": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "packages": {
+      "torch": "2.11.0+cu130",
+      "torchvision": "0.26.0+cu130",
+      "rfdetr": "1.12.1"
+    },
+    "cuda_available": true,
+    "gpu": "Tesla T4",
+    "cuda": "13.0"
+  },
+  "created": "2026-11-21T19:08:52+00:00"
+}
