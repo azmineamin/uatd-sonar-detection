@@ -22,7 +22,10 @@ dependencies = [
 dev = ["pytest>=8.0", "ruff>=0.6", "pre-commit>=3.5"]
 # RF-DETR (Robinson et al., ICLR 2026), main pipeline. Pinned; training stack = PyTorch Lightning.
 rfdetr = ["rfdetr[train]==1.12.1"]
-# Further track extras (yolo, dome, deim) are added with exact pins once each
+# DEIM-D-FINE (CVPR 2025 / ICLR 2025), comparison row. The official repo is cloned at a
+# pinned commit by uatd.deim_support; these are its requirements.txt plus gdown (weights).
+deim = ["faster-coco-eval>=1.6.5", "calflops", "transformers", "tensorboard", "scipy", "gdown"]
+# Further track extras (yolo, dome) are added with exact pins once each
 # install is verified on Kaggle with a --smoke run (CLAUDE.md, Section 7).
 
 [tool.setuptools.packages.find]

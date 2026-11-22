@@ -92,6 +92,31 @@ It also reports P, R and F1 with the Ultralytics definition used for the YOLO26n
 confidence of maximum mean F1), so every model's P/R is comparable; `tests/test_eval.py` checks it against
 Ultralytics' own code.
 
+## DEIM-D-FINE-S (comparison row, CVPR 2025 / ICLR 2025)
+
+DEIM (Huang et al., CVPR 2025) trained on D-FINE (Peng et al., ICLR 2025), small model. It comes from the
+RT-DETR codebase, so it is a **comparison row only** (CLAUDE.md rule 6). Same split, same selection on `val`,
+same shared evaluator, batch 16.
+
+```bash
+pip install -e ".[deim]"
+python scripts/train_deim.py --data data/processed --seed 0        # clones the official repo (pinned commit)
+python scripts/predict_deim.py --run runs/deim/dfine_s_s0 --data data/processed
+# quick CPU check: python scripts/train_deim.py --data <processed_smoke> --smoke --device cpu --no-amp
+```
+
+- **Code:** the official repo, unmodified, at the commit in `uatd.deim_support.DEIM_COMMIT`, fine-tuned from
+  the official COCO checkpoint. `uatd.deim_compat` maps DEIM's torchvision hooks (`_transform`, `_get_params`)
+  to the names newer torchvision calls (`transform`, `make_params`); no other change.
+- **Config:** [`configs/deim/uatd_deim_dfine_s.yml`](configs/deim/uatd_deim_dfine_s.yml) = official S config +
+  our data (10 classes) + the authors' 60-epoch recipe + batch 16 (learning rates halved, repo's linear rule).
+  EMA and warm-up lengths keep the official recipe's length in epochs (UATD epochs are 8.7x shorter than
+  COCO's). Input 640x640.
+- **Checkpoint choice:** DEIM saves `best_stg1.pth` / `best_stg2.pth` by val AP. `predict_deim.py` scores every
+  saved best checkpoint on `val` with the shared evaluator and keeps the highest mAP50:95 (`selection.json`).
+- **Resume:** like RF-DETR (`last.pth`, `--time-budget-hours`, `status.json`). Kaggle notebook:
+  [`notebooks/kaggle_deim.ipynb`](notebooks/kaggle_deim.ipynb).
+
 ## Classes
 
 `0 ball, 1 circle cage, 2 cube, 3 cylinder, 4 human body, 5 metal bucket, 6 plane, 7 rov, 8 square cage, 9 tyre`
@@ -108,8 +133,11 @@ Ultralytics' own code.
   - [ ] efficiency (params, GFLOPs, T4 latency)
 - [ ] 5. Main pipeline: RF-DETR (ICLR 2026) N/S
   - [x] resumable training + prediction scripts, CPU smoke test on real UATD images
-  - [ ] full training run on Kaggle
+  - [x] full training run on Kaggle: RF-DETR-S seed 0 (`results/rfdetr/small_rdefault_s0/`)
+  - [ ] RF-DETR-N; higher resolution
 - [ ] 6. Baselines: YOLOv12, FBRT-YOLO, D-FINE/DEIM, Dome-DETR
+  - [x] DEIM-D-FINE-S: training + prediction scripts, Kaggle notebook, CPU smoke test
+  - [ ] DEIM-D-FINE-S full Kaggle run
 - [ ] 7. Error analysis
 - [ ] 8. Method (tiny-object idea on RF-DETR) + ablations
 - [ ] 9. Final runs (3 seeds), efficiency table, figures

@@ -1,0 +1,78 @@
+# DEIM-D-FINE-S (Huang et al., CVPR 2025, on D-FINE, Peng et al., ICLR 2025) on the fixed UATD split.
+# Comparison row only (RT-DETR lineage; CLAUDE.md rule 6).
+#
+# Template: scripts/train_deim.py replaces ${DEIM} (official repo, pinned commit), ${DATA}
+# (processed data dir) and ${OUT} (run dir), and saves the resolved file as <run>/config.yml.
+#
+# Everything not listed here comes from the official S config
+# (configs/deim_dfine/deim_hgnetv2_s_coco.yml): HGNetv2-B0 backbone, 640x640 input,
+# Dense O2O (Mosaic + MixUp), MAL loss, flat-cosine LR, EMA, AMP.
+#
+# Changes, and why:
+# 1. Data: our COCO JSON (category IDs 0-9, no COCO remap), 10 classes.
+# 2. Schedule: the authors' 60-epoch recipe (configs/deim_rtdetrv2/deim_r50vd_60e_coco.yml)
+#    instead of the 132-epoch from-ImageNet schedule; we fine-tune from COCO weights, and
+#    132 epochs does not fit Kaggle's GPU budget. Model selection on val as in the repo.
+# 3. Batch 16 (official 32): same effective batch as RF-DETR. Learning rates halved with the
+#    repo's linear rule (README, "Customizing Batch Size").
+# 4. Settings counted in iterations keep the same length *in epochs* as the official recipe.
+#    UATD has 427 iterations/epoch at batch 16 (6835 images); COCO has 3697 at batch 32.
+#      EMA decay 0.9999 = horizon 1/(1-d) = 10k iters = 2.7 COCO epochs  -> 0.9991 (~2.6 epochs)
+#      EMA warm-up 1000 iters = 0.27 epochs                               -> 120 iters
+#      LR warm-up 2000 iters = 0.54 epochs                                -> 230 iters
+#    Keeping the COCO values would make the EMA average over ~25-50 UATD epochs, so the
+#    EMA weights (used for evaluation and checkpoint selection) would lag far behind.
+
+__include__: ['${DEIM}/configs/deim_dfine/deim_hgnetv2_s_coco.yml']
+
+output_dir: ${OUT}
+
+num_classes: 10
+remap_mscoco_category: False
+
+train_dataloader:
+  dataset:
+    img_folder: ${DATA}/images
+    ann_file: ${DATA}/coco/train.json
+    transforms:
+      policy:
+        epoch: [4, 34, 58]
+  collate_fn:
+    mixup_epochs: [4, 34]
+    stop_epoch: 58
+    ema_restart_decay: 0.9991
+  total_batch_size: 16
+  num_workers: 4
+
+val_dataloader:
+  dataset:
+    img_folder: ${DATA}/images
+    ann_file: ${DATA}/coco/val.json
+  total_batch_size: 32
+  num_workers: 4
+
+epoches: 60
+flat_epoch: 34
+no_aug_epoch: 2
+
+optimizer:
+  type: AdamW
+  params:
+    -
+      params: '^(?=.*backbone)(?!.*bn).*$'
+      lr: 0.0001
+    -
+      params: '^(?=.*(?:norm|bn)).*$'
+      weight_decay: 0.
+  lr: 0.0002
+  betas: [0.9, 0.999]
+  weight_decay: 0.0001
+
+ema:
+  type: ModelEMA
+  decay: 0.9991
+  warmups: 120
+  start: 0
+
+warmup_iter: 230
+checkpoint_freq: 12

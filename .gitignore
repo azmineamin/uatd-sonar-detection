@@ -35,3 +35,6 @@ Thumbs.db
 # secrets
 .env
 kaggle.json
+
+# third-party code cloned at a pinned commit (uatd.deim_support)
+third_party/
