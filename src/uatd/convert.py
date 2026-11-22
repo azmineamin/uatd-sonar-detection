@@ -23,6 +23,7 @@ import json
 import os
 import shutil
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from PIL import Image
@@ -94,6 +95,7 @@ def convert_split(
     splits_dir: Path = DEFAULT_SPLITS_DIR,
     mode: str = "symlink",
     limit: int | None = None,
+    workers: int = 16,
 ) -> dict:
     entries = read_manifest(split, splits_dir)
     if limit is not None:
@@ -105,14 +107,13 @@ def convert_split(
     img_dir.mkdir(parents=True, exist_ok=True)
     lbl_dir.mkdir(parents=True, exist_ok=True)
 
-    coco = empty_coco()
-    per_class: Counter = Counter()
-    ann_id = 1
     for e in entries:
         if e.stem not in pairs:
             raise FileNotFoundError(
                 f"{e.line} listed in {split}.txt but not found under {raw_root}"
             )
+
+    def process(e: ManifestEntry):
         img_path, xml_path = pairs[e.stem]
         with Image.open(img_path) as im:
             w, h = im.size
@@ -122,14 +123,23 @@ def convert_split(
                 f"{e.line} is in the manifest but fails cleaning ({res.drop_reason}); "
                 "the raw data does not match the committed split"
             )
-
         dst = place_image(img_path, img_dir / e.uid, mode)
         (lbl_dir / f"{e.uid}.txt").write_text(
             "\n".join(yolo_lines(res.boxes, w, h)) + ("\n" if res.boxes else ""),
             encoding="utf-8",
             newline="\n",
         )
+        return e, w, h, res, dst
 
+    # Threads: reads from network-mounted storage (Kaggle input) are latency-bound and
+    # PNG compression releases the GIL. map() keeps manifest order, so IDs are unchanged.
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        processed = list(pool.map(process, entries))
+
+    coco = empty_coco()
+    per_class: Counter = Counter()
+    ann_id = 1
+    for e, w, h, res, dst in processed:
         image_id = coco_image_id(e)
         coco["images"].append(
             {
@@ -197,13 +207,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--link-mode", default="symlink", choices=LINK_MODES)
     ap.add_argument("--limit", type=int, help="only the first N images per split")
     ap.add_argument("--smoke", action="store_true", help="same as --limit 6")
+    ap.add_argument("--workers", type=int, default=16, help="parallel file reads/writes")
     args = ap.parse_args(argv)
 
     limit = 6 if args.smoke else args.limit
     report = {}
     for split in args.splits:
         report[split] = convert_split(
-            split, args.raw_root, args.out, args.splits_dir, args.link_mode, limit
+            split, args.raw_root, args.out, args.splits_dir, args.link_mode, limit, args.workers
         )
         print(
             f"{split:6s} images {report[split]['images']:5d} objects {report[split]['objects']:6d}"

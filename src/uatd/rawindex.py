@@ -82,21 +82,27 @@ def locate_pairs(raw_root: Path, folder: str) -> dict[str, tuple[Path, Path]]:
     return {s: (imgs[s], xmls[s]) for s in sorted(imgs.keys() & xmls.keys())}
 
 
-def index_local(raw_root: Path, folders: Iterable[str] = RAW_FOLDERS) -> Index:
+def _local_entry(pair: tuple[Path, Path]) -> dict:
+    img, xml = pair
+    with Image.open(img) as im:  # reads the header only
+        w, h = im.size
+    return {
+        "width": w,
+        "height": h,
+        "xml": xml.read_text(encoding="utf-8", errors="replace"),
+        "image": str(img),
+        "annotation": str(xml),
+    }
+
+
+def index_local(raw_root: Path, folders: Iterable[str] = RAW_FOLDERS, workers: int = 16) -> Index:
+    """Threads, because on network-mounted storage (Kaggle input) each small read waits
+    on latency; results keep the sorted stem order of ``locate_pairs``."""
     index: Index = {}
-    for folder in folders:
-        entries: dict[str, dict] = {}
-        for stem, (img, xml) in locate_pairs(raw_root, folder).items():
-            with Image.open(img) as im:
-                w, h = im.size
-            entries[stem] = {
-                "width": w,
-                "height": h,
-                "xml": xml.read_text(encoding="utf-8", errors="replace"),
-                "image": str(img),
-                "annotation": str(xml),
-            }
-        index[folder] = entries
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for folder in folders:
+            pairs = locate_pairs(raw_root, folder)
+            index[folder] = dict(zip(pairs, pool.map(_local_entry, pairs.values()), strict=True))
     return index
 
 
