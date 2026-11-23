@@ -1,0 +1,13 @@
+\begin{tabular}{p{3.6cm}p{10.4cm}}
+\toprule
+Item & Value \\
+\midrule
+Hardware & Kaggle, Tesla T4 (1 GPU used) \\
+Software & Python 3.13.16; PyTorch 2.11.0+cu130; CUDA 13.0; official DEIM repo at commit 09d35d5 \\
+Code version & git commit \texttt{2056224} (clean) \\
+Training time & 8.48 h in 1 session(s) \\
+Epochs run & 60 (fixed schedule) \\
+Best epoch & 59 (val mAP50:95 0.592, DEIM built-in evaluator, EMA weights) \\
+Prediction threshold & score $\geq$ 0.001, at most 300 detections per image \\
+\bottomrule
+\end{tabular}

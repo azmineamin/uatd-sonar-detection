@@ -1,0 +1,121 @@
+{
+  "pipeline": "DEIM-D-FINE-S (Huang et al., CVPR 2025; Peng et al., ICLR 2025)",
+  "role": "comparison row (RT-DETR lineage, CLAUDE.md rule 6)",
+  "deim_repo_commit": "09d35d53d39ee3145a1e61e3a989b28b9468d1dd",
+  "template": "configs/deim/uatd_deim_dfine_s.yml",
+  "resolved_config": {
+    "__include__": [
+      "/kaggle/working/third_party/DEIM/configs/deim_dfine/deim_hgnetv2_s_coco.yml"
+    ],
+    "output_dir": "/kaggle/working/runs/deim/dfine_s_s0",
+    "num_classes": 10,
+    "remap_mscoco_category": false,
+    "train_dataloader": {
+      "dataset": {
+        "img_folder": "/tmp/uatd_processed/images",
+        "ann_file": "/tmp/uatd_processed/coco/train.json",
+        "transforms": {
+          "policy": {
+            "epoch": [
+              4,
+              34,
+              58
+            ]
+          }
+        }
+      },
+      "collate_fn": {
+        "mixup_epochs": [
+          4,
+          34
+        ],
+        "stop_epoch": 58,
+        "ema_restart_decay": 0.9991
+      },
+      "total_batch_size": 16,
+      "num_workers": 4
+    },
+    "val_dataloader": {
+      "dataset": {
+        "img_folder": "/tmp/uatd_processed/images",
+        "ann_file": "/tmp/uatd_processed/coco/val.json"
+      },
+      "total_batch_size": 32,
+      "num_workers": 4
+    },
+    "epoches": 60,
+    "flat_epoch": 34,
+    "no_aug_epoch": 2,
+    "optimizer": {
+      "type": "AdamW",
+      "params": [
+        {
+          "params": "^(?=.*backbone)(?!.*bn).*$",
+          "lr": 0.0001
+        },
+        {
+          "params": "^(?=.*(?:norm|bn)).*$",
+          "weight_decay": 0.0
+        }
+      ],
+      "lr": 0.0002,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.0001
+    },
+    "ema": {
+      "type": "ModelEMA",
+      "decay": 0.9991,
+      "warmups": 120,
+      "start": 0
+    },
+    "warmup_iter": 230,
+    "checkpoint_freq": 12
+  },
+  "args": {
+    "data": "/tmp/uatd_processed",
+    "config": "configs/deim/uatd_deim_dfine_s.yml",
+    "deim_dir": "/kaggle/working/third_party/DEIM",
+    "pretrained": null,
+    "seed": 0,
+    "device": "cuda",
+    "no_amp": false,
+    "time_budget_hours": 10.86,
+    "runs_dir": "/kaggle/working/runs/deim",
+    "exp": "dfine_s_s0",
+    "smoke": false
+  },
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "uatd.deim_compat",
+    "/kaggle/working/third_party/DEIM",
+    "-c",
+    "/kaggle/working/runs/deim/dfine_s_s0/config.yml",
+    "--seed",
+    "0",
+    "-d",
+    "cuda",
+    "-t",
+    "/kaggle/working/third_party/DEIM/weights/deim_dfine_hgnetv2_s_coco_120e.pth",
+    "--use-amp"
+  ],
+  "git": {
+    "commit": "20562246cc27fe3130c55980f19eee8c5229884f",
+    "dirty": false
+  },
+  "env": {
+    "python": "3.13.16",
+    "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "packages": {
+      "torch": "2.11.0+cu130",
+      "torchvision": "0.26.0+cu130"
+    },
+    "cuda_available": true,
+    "gpu": "Tesla T4",
+    "cuda": "13.0"
+  },
+  "created": "2026-11-22T21:33:06+00:00"
+}

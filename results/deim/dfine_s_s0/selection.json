@@ -1,0 +1,17 @@
+{
+  "rule": "highest val mAP50:95 (shared evaluator), tie: mAP50",
+  "selected": "/kaggle/working/runs/deim/dfine_s_s0/best_stg2.pth",
+  "candidates": [
+    {
+      "checkpoint": "best_stg1.pth",
+      "val_mAP50_95": 0.5909601119027142,
+      "val_mAP50": 0.9603747634693475
+    },
+    {
+      "checkpoint": "best_stg2.pth",
+      "val_mAP50_95": 0.5918426335780479,
+      "val_mAP50": 0.9614561070732717
+    }
+  ],
+  "time": "2026-11-23T06:03:58+00:00"
+}

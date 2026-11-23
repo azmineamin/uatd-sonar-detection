@@ -102,7 +102,7 @@ Points to cover:
 \caption{RF-DETR-S versus the YOLO26n reference on the same split.
 $^\dagger$YOLO26n values are copied from the original notebook (Ultralytics validator, imgsz 640); RF-DETR values come from our shared evaluator (pycocotools + Ultralytics-definition P/R/F1).}
 \label{tab:vsyolo}
-\gentab{tab_vs_yolo}
+\gentab{tab_compare}
 \end{table}
 
 \subsection{Objectives}
@@ -241,13 +241,17 @@ Points to cover: val $\rightarrow$ test drop (mAP50 0.967 $\rightarrow$ 0.815 / 
 \end{table}
 
 \begin{table}[H]\centering\small
-\caption{Per-class AP on the test sets: YOLO26n reference (notebook, Ultralytics validator) versus RF-DETR-S (shared evaluator).}
-\setlength{\tabcolsep}{4pt}
-\resizebox{\linewidth}{!}{\gentab{tab_per_class_vs_yolo}}
+\caption{Per-class AP50 on the test sets: YOLO26n reference (notebook, Ultralytics validator) versus RF-DETR-S (shared evaluator). Best per class and split in bold.}
+\gentab{tab_per_class_cmp_ap50}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Per-class AP50:95 on the test sets, same models.}
+\gentab{tab_per_class_cmp_ap5095}
 \end{table}
 
 \begin{figure}[H]\centering
-\includegraphics[width=\linewidth]{figures/fig_per_class_vs_yolo.png}
+\includegraphics[width=\linewidth]{figures/fig_per_class_compare.png}
 \caption{Per-class AP50 on Test 1 and Test 2.}
 \end{figure}
 
@@ -347,16 +351,17 @@ Step & Work\\
 % ------------------------------------------------------------------ appendix
 \appendix
 \section{Epoch log}\label{app:epochs}
+\input{generated/tab_epoch_log_header}
 {\small
 \setlength{\tabcolsep}{4pt}
 \begin{longtable}{rrrrrrrrrr}
 \caption{Per-epoch training losses and validation metrics (RF-DETR built-in evaluator).}\\
 \toprule
-Epoch & Loss & CE & L1 & GIoU & P & R & mAP50 & mAP75 & mAP50:95\\
+\epochheader\\
 \midrule
 \endfirsthead
 \toprule
-Epoch & Loss & CE & L1 & GIoU & P & R & mAP50 & mAP75 & mAP50:95\\
+\epochheader\\
 \midrule
 \endhead
 \bottomrule

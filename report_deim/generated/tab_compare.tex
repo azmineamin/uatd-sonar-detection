@@ -1,0 +1,17 @@
+\begin{tabular}{llrrrrrr}
+\toprule
+Split & Model & P & R & F1 & mAP50 & mAP75 & mAP50:95 \\
+\midrule
+val & YOLO26n$^\dagger$ & 0.968 & 0.957 & 0.962 & 0.966 & 0.595 & 0.561 \\
+ & RF-DETR-S & \textbf{0.972} & 0.967 & \textbf{0.969} & \textbf{0.967} & 0.632 & 0.578 \\
+ & DEIM-D-FINE-S & 0.967 & \textbf{0.967} & 0.967 & 0.961 & \textbf{0.670} & \textbf{0.592} \\
+\midrule
+test1 & YOLO26n$^\dagger$ & 0.848 & 0.820 & 0.834 & 0.777 & 0.208 & 0.329 \\
+ & RF-DETR-S & \textbf{0.867} & 0.829 & \textbf{0.840} & \textbf{0.815} & 0.261 & 0.368 \\
+ & DEIM-D-FINE-S & 0.853 & \textbf{0.833} & 0.837 & 0.809 & \textbf{0.290} & \textbf{0.376} \\
+\midrule
+test2 & YOLO26n$^\dagger$ & 0.852 & 0.836 & 0.844 & 0.804 & 0.204 & 0.337 \\
+ & RF-DETR-S & \textbf{0.878} & 0.850 & \textbf{0.855} & 0.825 & 0.246 & 0.363 \\
+ & DEIM-D-FINE-S & 0.864 & \textbf{0.852} & 0.851 & \textbf{0.833} & \textbf{0.286} & \textbf{0.383} \\
+\bottomrule
+\end{tabular}

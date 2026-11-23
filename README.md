@@ -137,7 +137,7 @@ python scripts/predict_deim.py --run runs/deim/dfine_s_s0 --data data/processed
   - [ ] RF-DETR-N; higher resolution
 - [ ] 6. Baselines: YOLOv12, FBRT-YOLO, D-FINE/DEIM, Dome-DETR
   - [x] DEIM-D-FINE-S: training + prediction scripts, Kaggle notebook, CPU smoke test
-  - [ ] DEIM-D-FINE-S full Kaggle run
+  - [x] DEIM-D-FINE-S full Kaggle run (`results/deim/dfine_s_s0/`, report `report_deim/`)
 - [ ] 7. Error analysis
 - [ ] 8. Method (tiny-object idea on RF-DETR) + ablations
 - [ ] 9. Final runs (3 seeds), efficiency table, figures

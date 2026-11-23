@@ -1,0 +1,22 @@
+\begin{tabular}{p{3.6cm}p{10.4cm}}
+\toprule
+Setting & Value \\
+\midrule
+Model & DEIM-D-FINE-S, 10.23 M parameters (fine-tuned from deim\_dfine\_hgnetv2\_s\_coco\_120e.pth) \\
+Backbone & HGNetv2-B0, feature levels [1, 2, 3] \\
+Encoder & hybrid encoder, hidden 256, depth 0.34, expansion 0.5 \\
+Decoder & D-FINE, 3 layers, 300 queries, edge distributions with 32 bins, 100 denoising queries \\
+Input resolution & 640 $\times$ 640 (multi-scale training around 640 until epoch 58) \\
+Epochs & 60, fixed schedule (authors' 60-epoch recipe) \\
+Phases & 1--4: no strong aug.; 5--34: Mosaic (p=0.5, 320 px tiles) + MixUp (p=0.5); 35--58: photometric, zoom-out, IoU crop, flip; 59--60: no aug., restart from best phase-1 weights \\
+Batch & 16 (no accumulation) \\
+Optimizer & AdamW; lr 0.0002, backbone lr 0.0001, weight decay 0.0001 \\
+LR schedule & flat-cosine: warm-up 230 iterations, flat until epoch 34, cosine to 0.5$\times$ lr, last 2 epochs at the minimum \\
+EMA & decay 0.9991, warm-up 120 iterations \\
+Loss weights & MAL 1, L1 5, GIoU 2, FGL 0.15, DDF 1.5 \\
+Gradient clipping & max norm 0.1 \\
+Precision & mixed (AMP, fp16 on T4) \\
+Seed & 0 \\
+Checkpoint selection & DEIM keeps the best val checkpoint per phase; of these, \texttt{best\_stg2.pth} has the highest val mAP50:95 with the shared evaluator (0.592) \\
+\bottomrule
+\end{tabular}

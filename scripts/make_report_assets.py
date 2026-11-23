@@ -1,15 +1,22 @@
-"""Figures and LaTeX tables for the RF-DETR project-update report (report/).
+"""Figures and LaTeX tables for a project-update report on one trained model.
 
 Every number comes from files written by the pipeline: the shared evaluator's
-``metrics/{split}.json``, the predictions, the RF-DETR training log (``metrics.csv``,
-``training_config.json``) and the processed COCO ground truth. Nothing is typed by hand
-except the YOLO26n reference values, which are copied from the original notebook report
-(Ultralytics validator, not our evaluator) and labelled as such.
+``metrics/{split}.json``, the predictions, the model's training log and config, and the
+processed COCO ground truth. Nothing is typed by hand except the YOLO26n reference values,
+which are copied from the original notebook report (Ultralytics validator, not our
+evaluator) and labelled as such. Other runs of ours can be added with ``--compare``.
 
-    python scripts/make_report_assets.py \\
-        --results D:/UATD/kaggle_out/rfdetr/results_small_rdefault_s0 \\
-        --train-dir D:/UATD/kaggle_out/rfdetr/runs/rfdetr/small_rdefault_s0 \\
+    # RF-DETR (report/)
+    python scripts/make_report_assets.py --model rfdetr \
+        --results D:/UATD/kaggle_out/rfdetr/results_small_rdefault_s0 \
+        --train-dir D:/UATD/kaggle_out/rfdetr/runs/rfdetr/small_rdefault_s0 \
         --processed D:/UATD/processed --out report
+
+    # DEIM-D-FINE-S compared with RF-DETR (report_deim/)
+    python scripts/make_report_assets.py --model deim \
+        --results D:/UATD/kaggle_out/deim/results_dfine_s_s0 --deim-dir D:/UATD/third_party/DEIM \
+        --compare RF-DETR-S=results/rfdetr/small_rdefault_s0 \
+        --processed D:/UATD/processed --out report_deim
 """
 
 from __future__ import annotations
@@ -20,6 +27,7 @@ import csv
 import io
 import json
 import random
+import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -28,6 +36,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import yaml  # noqa: E402
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
 from pycocotools.coco import COCO  # noqa: E402
 from pycocotools.cocoeval import COCOeval  # noqa: E402
@@ -60,6 +69,11 @@ YOLO26N = {
 
 C_RF = "#1f6f8b"
 C_YOLO = "#c8763a"
+MODELS = {
+    "rfdetr": {"name": "RF-DETR-S", "color": "#1f6f8b"},
+    "deim": {"name": "DEIM-D-FINE-S", "color": "#8e5ea2"},
+}
+YOLO_NAME = r"YOLO26n$^\dagger$"
 SPLIT_COLORS = {"val": "#7a8b99", "test1": "#1f6f8b", "test2": "#3a9c6b"}
 
 plt.rcParams.update(
@@ -109,7 +123,7 @@ def load_preds(results: Path, split: str) -> list[dict]:
 
 
 # ----------------------------------------------------------------------------- figures
-def fig_training(log_rows: list[dict], out: Path) -> dict:
+def training_rfdetr(log_rows: list[dict], out: Path) -> dict:
     by_ep: dict[int, dict] = defaultdict(dict)
     for r in log_rows:
         ep = int(r["epoch"])
@@ -177,13 +191,133 @@ def fig_training(log_rows: list[dict], out: Path) -> dict:
     ]
     return {
         "n_epochs": len(eps),
+        "stop_reason": "early stopping",
         "best_epoch": int(x[best_i]),
         "best_val_map5095_builtin": float(m5095[best_i]),
         "epoch_table": epoch_table,
+        "epoch_header": [
+            "Epoch",
+            "Loss",
+            "CE",
+            "L1",
+            "GIoU",
+            "P",
+            "R",
+            "mAP50",
+            "mAP75",
+            "mAP50:95",
+        ],
+        "evaluator_name": "RF-DETR built-in evaluator",
     }
 
 
-def fig_split_bars(metrics: dict, out: Path):
+def training_deim(log: list[dict], cfg: dict, out: Path) -> dict:
+    """DEIM ``log.txt``: one JSON line per epoch; val stats = COCO's 12 numbers (EMA model)."""
+    x = np.array([int(r["epoch"]) for r in log]) + 1
+    get = lambda k: np.array([r.get(k, np.nan) for r in log], dtype=float)  # noqa: E731
+    stats = np.array([r["test_coco_eval_bbox"] for r in log], dtype=float)
+    best_i = int(np.nanargmax(stats[:, 0]))
+    td = cfg["train_dataloader"]
+    p0, p1, p2 = td["dataset"]["transforms"]["policy"]["epoch"]
+    total = int(cfg["epoches"])
+
+    def shade(a):
+        # 0-based epoch e is plotted at e + 1
+        a.axvspan(p0 + 0.5, p1 + 0.5, color="#8e5ea2", alpha=0.07, lw=0)
+        a.axvspan(p2 + 0.5, total + 0.5, color="#c8763a", alpha=0.12, lw=0)
+
+    fig, ax = plt.subplots(1, 3, figsize=(10, 2.8))
+    shade(ax[0])
+    ax[0].plot(x, get("train_loss"), color=MODELS["deim"]["color"])
+    ax[0].set_title("Training loss (epoch mean, all terms)")
+    ax[0].set_xlabel("epoch")
+    shade(ax[1])
+    for k, lab, c in (
+        ("train_loss_fgl", "FGL (box edges)", "#1f6f8b"),
+        ("train_loss_mal", "MAL (class.)", "#8e5ea2"),
+        ("train_loss_giou", "GIoU", "#c8763a"),
+        ("train_loss_bbox", "L1 box", "#3a9c6b"),
+    ):
+        ax[1].plot(x, get(k), label=lab, color=c)
+    ax[1].set_title("Loss components (final decoder layer)")
+    ax[1].set_xlabel("epoch")
+    ax[1].legend(frameon=False, fontsize=7)
+    shade(ax[2])
+    for i, lab, c in ((1, "mAP50", C_RF), (2, "mAP75", "#8e5ea2"), (0, "mAP50:95", "#3a9c6b")):
+        ax[2].plot(x, stats[:, i], label=lab, color=c)
+    ax[2].axvline(x[best_i], color="k", lw=0.8, ls="--")
+    ax[2].annotate(
+        f"best: epoch {x[best_i]}",
+        (x[best_i], 0.05),
+        xytext=(-4, 0),
+        textcoords="offset points",
+        fontsize=7,
+        ha="right",
+    )
+    ax[2].set_ylim(0, 1.02)
+    ax[2].set_title("Validation (DEIM evaluator, EMA weights)")
+    ax[2].set_xlabel("epoch")
+    ax[2].legend(frameon=False, fontsize=7, loc="lower left", bbox_to_anchor=(0.0, 0.08))
+    fig.tight_layout()
+    fig.savefig(out / "fig_training_curves.png")
+    plt.close(fig)
+
+    epoch_table = [
+        [
+            str(x[i]),
+            f3(r["train_loss"]),
+            f3(r["train_loss_mal"]),
+            f"{r['train_loss_bbox']:.4f}",
+            f3(r["train_loss_giou"]),
+            f3(r["train_loss_fgl"]),
+            f3(stats[i, 0]),
+            f3(stats[i, 1]),
+            f3(stats[i, 2]),
+            f3(stats[i, 8]),
+        ]
+        for i, r in enumerate(log)
+    ]
+    return {
+        "n_epochs": len(log),
+        "stop_reason": "fixed schedule",
+        "best_epoch": int(x[best_i]),
+        "best_val_map5095_builtin": float(stats[best_i, 0]),
+        "epoch_table": epoch_table,
+        "epoch_header": [
+            "Epoch",
+            "Loss",
+            "MAL",
+            "L1",
+            "GIoU",
+            "FGL",
+            "mAP50:95",
+            "mAP50",
+            "mAP75",
+            "AR100",
+        ],
+        "evaluator_name": "DEIM built-in evaluator, EMA weights",
+        "n_parameters": int(log[0].get("n_parameters", 0)),
+        "phases": [p0, p1, p2, total],
+    }
+
+
+def load_deim_config(results: Path, deim_dir: Path) -> dict:
+    """The fully merged DEIM config (our file + the official includes), via DEIM's loader."""
+    from uatd.deim_support import import_deim
+
+    import_deim(deim_dir)
+    from engine.core.yaml_utils import load_config  # type: ignore[import-not-found]
+
+    cfg = yaml.safe_load((results / "config.yml").read_text(encoding="utf-8"))
+    inc = cfg["__include__"][0]
+    cfg["__include__"] = [(deim_dir / inc[inc.index("configs/") :]).resolve().as_posix()]
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td) / "config.yml"
+        tmp.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        return load_config(str(tmp), {})
+
+
+def fig_split_bars(metrics: dict, name: str, out: Path):
     keys = [
         ("P", "P"),
         ("R", "R"),
@@ -202,27 +336,32 @@ def fig_split_bars(metrics: dict, out: Path):
     ax.set_xticks(xs, [lab for _, lab in keys])
     ax.set_ylim(0, 1.08)
     ax.legend(frameon=False, ncol=3, loc="upper right")
-    ax.set_title("RF-DETR-S on the three evaluation splits (shared evaluator)")
+    ax.set_title(f"{name} on the three evaluation splits (shared evaluator)")
     fig.savefig(out / "fig_split_comparison.png")
     plt.close(fig)
 
 
-def fig_vs_yolo(metrics: dict, out: Path):
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.3), sharey=True)
+def fig_per_class_compare(runs: dict[str, dict], colors: dict[str, str], out: Path):
+    """runs: model name -> metrics per split (ours); YOLO26n reference drawn first."""
+    series = [("YOLO26n (reference)", C_YOLO, YOLO26N["AP50"])]
+    for name, m in runs.items():
+        vals = {s: [m[s]["per_class"][c]["AP50"] for c in CLASS_NAMES] for s in TEST_SPLITS}
+        series.append((name, colors[name], vals))
+    h = 0.8 / len(series)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.0 + 0.4 * len(series)), sharey=True)
     y = np.arange(len(CLASS_NAMES))
     for ax, s in zip(axes, TEST_SPLITS, strict=True):
-        rf = [metrics[s]["per_class"][c]["AP50"] for c in CLASS_NAMES]
-        yo = YOLO26N["AP50"][s]
-        ax.barh(y + 0.2, rf, 0.4, color=C_RF, label="RF-DETR-S (ours)")
-        ax.barh(y - 0.2, yo, 0.4, color=C_YOLO, label="YOLO26n (reference)")
+        for i, (name, c, vals) in enumerate(series):
+            ax.barh(y - 0.4 + h * (i + 0.5), vals[s], h, color=c, label=name)
         ax.set_yticks(y, CLASS_NAMES)
         ax.invert_yaxis()
         ax.set_xlim(0, 1.05)
         ax.set_title(f"{s}: per-class AP50")
         ax.set_xlabel("AP50")
-    axes[0].legend(frameon=False, loc="lower left", fontsize=7)
-    fig.tight_layout()
-    fig.savefig(out / "fig_per_class_vs_yolo.png")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=len(series), frameon=False, fontsize=8)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    fig.savefig(out / "fig_per_class_compare.png")
     plt.close(fig)
 
 
@@ -375,7 +514,9 @@ def _font(size: int):
     return ImageFont.load_default()
 
 
-def fig_gallery(processed: Path, results: Path, split: str, thr: float, out: Path, n: int = 4):
+def fig_gallery(
+    processed: Path, results: Path, split: str, thr: float, out: Path, name: str, n: int = 4
+):
     gt = json.loads((processed / "coco" / f"{split}.json").read_text())
     preds = load_preds(results, split)
     imgs = sorted(gt["images"], key=lambda i: i["id"])
@@ -408,7 +549,7 @@ def fig_gallery(processed: Path, results: Path, split: str, thr: float, out: Pat
                 dr.text((x, max(0, y - 22)), lab, fill=col, font=font)
             dr.text(
                 (8, 8),
-                f"{im['uatd_id']}  {'ground truth' if kind == 'GT' else 'RF-DETR'}",
+                f"{im['uatd_id']}  {'ground truth' if kind == 'GT' else name}",
                 fill=(255, 255, 255),
                 font=font,
             )
@@ -445,23 +586,169 @@ def class_counts(processed: Path) -> dict:
     return out
 
 
+def config_rows_rfdetr(train_cfg: dict, run_cfg: dict) -> list[list[str]]:
+    mc, tc = train_cfg["model_config"], train_cfg["train_config"]
+    a = run_cfg["args"]
+    return [
+        ["Model", f"{run_cfg['model']} (pretrained: {Path(mc['pretrain_weights']).name})"],
+        ["Encoder", tex_escape(f"{mc['encoder']} (DINOv2, windowed), patch {mc['patch_size']}")],
+        [
+            "Decoder",
+            f"{mc['dec_layers']} layers, hidden {mc['hidden_dim']}, "
+            f"{mc['num_queries']} queries, two-stage",
+        ],
+        ["Input resolution", f"{mc['resolution']} $\\times$ {mc['resolution']} (square resize)"],
+        [
+            "Epochs",
+            f"{a['epochs']} max; early stopping patience {a['patience']} "
+            f"(min delta {tc['early_stopping_min_delta']})",
+        ],
+        [
+            "Batch",
+            f"{a['batch']} $\\times$ grad. accumulation {a['grad_accum']} "
+            f"(effective {a['batch'] * a['grad_accum']})",
+        ],
+        [
+            "Optimizer",
+            f"AdamW; lr {a['lr']:g}, encoder lr {a['lr_encoder']:g}, "
+            f"weight decay {tc['weight_decay']:g}",
+        ],
+        [
+            "LR decay",
+            f"layer-wise ViT decay {tc['lr_vit_layer_decay']}, "
+            f"component decay {tc['lr_component_decay']}",
+        ],
+        ["EMA", f"decay {tc['ema_decay']}, tau {tc['ema_tau']}"],
+        [
+            "Augmentation",
+            "RF-DETR defaults: multi-scale (per batch), scale jitter, horizontal flip",
+        ],
+        ["Gradient clipping", f"max norm {tc['clip_max_norm']}"],
+        ["Precision", "mixed (AMP, fp16 on T4)"],
+        ["Seed", str(a["seed"])],
+        ["Checkpoint selection", "best val mAP50:95 (RF-DETR built-in evaluator)"],
+    ]
+
+
+def config_rows_deim(cfg: dict, run_cfg: dict, info: dict, selection: dict) -> list[list[str]]:
+    """From DEIM's fully merged config, so the table shows what actually ran."""
+    td, opt = cfg["train_dataloader"], cfg["optimizer"]
+    cf = td["collate_fn"]
+    p0, p1, p2, total = info["phases"]
+    hg, enc, dec = cfg["HGNetv2"], cfg["HybridEncoder"], cfg["DFINETransformer"]
+    w = cfg["DEIMCriterion"]["weight_dict"]
+    pre = Path(run_cfg["command"][run_cfg["command"].index("-t") + 1]).name
+    size = cfg["eval_spatial_size"]
+    mosaic = next(o for o in td["dataset"]["transforms"]["ops"] if o["type"] == "Mosaic")
+    mosaic_p = td["dataset"]["transforms"]["mosaic_prob"]
+    sel = Path(selection["selected"]).name
+    sel_score = next(c for c in selection["candidates"] if c["checkpoint"] == sel)
+    return [
+        [
+            "Model",
+            tex_escape(
+                f"DEIM-D-FINE-S, {info['n_parameters'] / 1e6:.2f} M parameters "
+                f"(fine-tuned from {pre})"
+            ),
+        ],
+        ["Backbone", f"HGNetv2-{hg['name']}, feature levels {hg['return_idx']}"],
+        [
+            "Encoder",
+            f"hybrid encoder, hidden {enc['hidden_dim']}, depth {enc['depth_mult']}, "
+            f"expansion {enc['expansion']}",
+        ],
+        [
+            "Decoder",
+            f"D-FINE, {dec['num_layers']} layers, {dec['num_queries']} queries, "
+            f"edge distributions with {dec['reg_max']} bins, "
+            f"{dec['num_denoising']} denoising queries",
+        ],
+        [
+            "Input resolution",
+            f"{size[0]} $\\times$ {size[1]} (multi-scale training around "
+            f"{cf['base_size']} until epoch {cf['stop_epoch']})",
+        ],
+        ["Epochs", f"{total}, fixed schedule (authors' 60-epoch recipe)"],
+        [
+            "Phases",
+            f"1--{p0}: no strong aug.; {p0 + 1}--{p1}: Mosaic (p={mosaic_p}"
+            f", {mosaic['output_size']} px tiles) + MixUp (p={cf['mixup_prob']}); "
+            f"{p1 + 1}--{p2}: photometric, zoom-out, IoU crop, flip; "
+            f"{p2 + 1}--{total}: no aug., restart from best phase-1 weights",
+        ],
+        ["Batch", f"{td['total_batch_size']} (no accumulation)"],
+        [
+            "Optimizer",
+            f"AdamW; lr {opt['lr']:g}, backbone lr {opt['params'][0]['lr']:g}, "
+            f"weight decay {opt['weight_decay']:g}",
+        ],
+        [
+            "LR schedule",
+            f"flat-cosine: warm-up {cfg['warmup_iter']} iterations, flat until epoch "
+            f"{cfg['flat_epoch']}, cosine to {cfg['lr_gamma']}$\\times$ lr, "
+            f"last {cfg['no_aug_epoch']} epochs at the minimum",
+        ],
+        ["EMA", f"decay {cfg['ema']['decay']}, warm-up {cfg['ema']['warmups']} iterations"],
+        [
+            "Loss weights",
+            f"MAL {w['loss_mal']}, L1 {w['loss_bbox']}, GIoU {w['loss_giou']}, "
+            f"FGL {w['loss_fgl']}, DDF {w['loss_ddf']}",
+        ],
+        ["Gradient clipping", f"max norm {cfg['clip_max_norm']}"],
+        ["Precision", "mixed (AMP, fp16 on T4)"],
+        ["Seed", str(run_cfg["args"]["seed"])],
+        [
+            "Checkpoint selection",
+            f"DEIM keeps the best val checkpoint per phase; of these, "
+            f"\\texttt{{{tex_escape(sel)}}} has the highest val mAP50:95 "
+            f"with the shared evaluator ({sel_score['val_mAP50_95']:.3f})",
+        ],
+    ]
+
+
+def env_rows(model: str, run_cfg: dict, sessions: list, info: dict, threshold: float) -> list:
+    s0 = sessions[0]
+    env = s0["env"]
+    software = f"Python {env['python']}; PyTorch {env['packages']['torch']}; CUDA {env['cuda']}; "
+    software += (
+        f"rfdetr {env['packages'].get('rfdetr')}"
+        if model == "rfdetr"
+        else f"official DEIM repo at commit {run_cfg['deim_repo_commit'][:7]}"
+    )
+    return [
+        ["Hardware", f"Kaggle, {env['gpu']} (1 GPU used)"],
+        ["Software", tex_escape(software)],
+        ["Code version", f"git commit \\texttt{{{s0['git']['commit'][:7]}}} (clean)"],
+        [
+            "Training time",
+            f"{sum(x['hours'] for x in sessions):.2f} h in {len(sessions)} session(s)",
+        ],
+        ["Epochs run", f"{info['n_epochs']} ({info['stop_reason']})"],
+        [
+            "Best epoch",
+            f"{info['best_epoch']} (val mAP50:95 {info['best_val_map5095_builtin']:.3f}, "
+            f"{info['evaluator_name']})",
+        ],
+        ["Prediction threshold", f"score $\\geq$ {threshold}, at most 300 detections per image"],
+    ]
+
+
 def tables(
     metrics: dict,
     counts: dict,
-    train_cfg: dict,
-    run_cfg: dict,
-    sessions: list,
+    name: str,
+    runs: dict[str, dict],
+    cfg_rows: list,
+    env: list,
     train_info: dict,
     conf: dict,
     gal: dict,
     out: Path,
     gen: Path,
 ):
+    keys = ("P", "R", "F1", "mAP50", "mAP75", "mAP50_95")
     # overall
-    rows = []
-    for s in SPLITS:
-        m = metrics[s]
-        rows.append([s, *(f3(m[k]) for k in ("P", "R", "F1", "mAP50", "mAP75", "mAP50_95"))])
+    rows = [[s, *(f3(metrics[s][k]) for k in keys)] for s in SPLITS]
     write_table(
         gen / "tab_overall.tex",
         "lrrrrrr",
@@ -477,38 +764,75 @@ def tables(
         [[f"{100 * metrics[s]['mAP50']:.2f}\\%" for s in SPLITS]],
     )
 
-    # comparison with YOLO26n
-    rows = []
+    # comparison: YOLO26n reference + our runs; best per split and column in bold
+    rows, mids = [], []
     for s in SPLITS:
-        for name, src in (("YOLO26n$^\\dagger$", YOLO26N["overall"][s]), ("RF-DETR-S", metrics[s])):
-            rows.append(
-                [
-                    s if name.startswith("YOLO") else "",
-                    name,
-                    *(f3(src[k]) for k in ("P", "R", "F1", "mAP50", "mAP75", "mAP50_95")),
-                ]
-            )
+        if rows:
+            mids.append(len(rows))
+        srcs = [(YOLO_NAME, YOLO26N["overall"][s])] + [(n, runs[n][s]) for n in runs]
+        cols = [bold_best([src[k] for _, src in srcs]) for k in keys]
+        for i, (n, _) in enumerate(srcs):
+            rows.append([s if i == 0 else "", n, *(c[i] for c in cols)])
     write_table(
-        gen / "tab_vs_yolo.tex",
+        gen / "tab_compare.tex",
         "llrrrrrr",
         ["Split", "Model", "P", "R", "F1", "mAP50", "mAP75", "mAP50:95"],
         rows,
-        mid=(2, 4),
+        mid=tuple(mids),
+    )
+
+    # per-class AP comparison on the test sets (one table per metric)
+    names = ["YOLO26n", *runs]
+    k = len(names)
+    pre = (
+        " & "
+        + " & ".join(rf"\multicolumn{{{k}}}{{c}}{{{t}}}" for t in ("Test 1", "Test 2"))
+        + r" \\"
+        + "\n"
+        + rf"\cmidrule(lr){{2-{k + 1}}}\cmidrule(lr){{{k + 2}-{2 * k + 1}}}"
+    )
+    for metric, fname in (
+        ("AP50", "tab_per_class_cmp_ap50"),
+        ("AP50_95", "tab_per_class_cmp_ap5095"),
+    ):
+        rows = []
+        for ci, c in enumerate(CLASS_NAMES):
+            r = [c]
+            for s in TEST_SPLITS:
+                vals = [YOLO26N[metric][s][ci]] + [runs[n][s]["per_class"][c][metric] for n in runs]
+                r += bold_best(vals)
+            rows.append(r)
+        write_table(
+            gen / f"{fname}.tex", "l" + "r" * (2 * k), ["Class", *names, *names], rows, pre=pre
+        )
+
+    # tiny / non-tiny comparison (our runs only; the notebook had no size bins)
+    rows = []
+    for n in runs:
+        r = [n]
+        for s in TEST_SPLITS:
+            b = runs[n][s]["size_bins"]
+            r += [f3(b["tiny"]["AP50_95"]), f3(b["non_tiny"]["AP50_95"])]
+        rows.append(r)
+    for j in range(1, 5):  # bold the best per column
+        col = bold_best([float(r[j]) for r in rows])
+        for r, v in zip(rows, col, strict=True):
+            r[j] = v
+    write_table(
+        gen / "tab_size_cmp.tex",
+        "lrrrr",
+        ["Model", "tiny", "non-tiny", "tiny", "non-tiny"],
+        rows,
+        pre=r" & \multicolumn{2}{c}{Test 1 AP50:95} & \multicolumn{2}{c}{Test 2 AP50:95} \\"
+        "\n"
+        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
     )
 
     # per-class
     for s in SPLITS:
         pc = metrics[s]["per_class"]
         rows = [
-            [
-                c,
-                str(pc[c]["num_gt"]),
-                f3(pc[c]["P"]),
-                f3(pc[c]["R"]),
-                f3(pc[c]["F1"]),
-                f3(pc[c]["AP50"]),
-                f3(pc[c]["AP50_95"]),
-            ]
+            [c, str(pc[c]["num_gt"]), *(f3(pc[c][m]) for m in ("P", "R", "F1", "AP50", "AP50_95"))]
             for c in CLASS_NAMES
         ]
         write_table(
@@ -518,31 +842,8 @@ def tables(
             rows,
         )
 
-    # per-class AP50 / AP50:95 vs YOLO on tests
-    rows = []
-    for k, c in enumerate(CLASS_NAMES):
-        r = [c]
-        for s in TEST_SPLITS:
-            r += [
-                f3(YOLO26N["AP50"][s][k]),
-                f3(metrics[s]["per_class"][c]["AP50"]),
-                f3(YOLO26N["AP50_95"][s][k]),
-                f3(metrics[s]["per_class"][c]["AP50_95"]),
-            ]
-        rows.append(r)
-    write_table(
-        gen / "tab_per_class_vs_yolo.tex",
-        "lrrrrrrrr",
-        ["Class", *["YOLO26n", "RF-DETR"] * 4],
-        rows,
-        pre=r" & \multicolumn{2}{c}{Test 1 AP50} & \multicolumn{2}{c}{Test 1 AP50:95}"
-        r" & \multicolumn{2}{c}{Test 2 AP50} & \multicolumn{2}{c}{Test 2 AP50:95} \\"
-        "\n"
-        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}",
-    )
-
     # COCO detail
-    names = [
+    detail = [
         ("mAP50_95", "AP", "0.50:0.95", "all"),
         ("mAP50", "AP", "0.50", "all"),
         ("mAP75", "AP", "0.75", "all"),
@@ -556,7 +857,7 @@ def tables(
         ("AR_medium", "AR@100", "0.50:0.95", "medium"),
         ("AR_large", "AR@100", "0.50:0.95", "large"),
     ]
-    rows = [[a, b, c, *(f3(metrics[s][k]) for s in SPLITS)] for k, a, b, c in names]
+    rows = [[a, b, c, *(f3(metrics[s][key]) for s in SPLITS)] for key, a, b, c in detail]
     write_table(
         gen / "tab_coco_detail.tex",
         "lllrrr",
@@ -564,7 +865,7 @@ def tables(
         rows,
     )
 
-    # size bins
+    # size bins (this model)
     rows = []
     for s in SPLITS:
         b = metrics[s]["size_bins"]
@@ -607,100 +908,34 @@ def tables(
     )
     write_table(gen / "tab_dataset.tex", "lrr", ["Split", "Images", "Objects"], rows, mid=(4,))
     rows = [
-        [c, *(str(counts[s]["per_class"][k]) for s in ("train", *SPLITS))]
-        for k, c in enumerate(CLASS_NAMES)
+        [c, *(str(counts[s]["per_class"][i]) for s in ("train", *SPLITS))]
+        for i, c in enumerate(CLASS_NAMES)
     ]
     write_table(
         gen / "tab_class_counts.tex", "lrrrr", ["Class", "Train", "Val", "Test 1", "Test 2"], rows
     )
 
-    # model / training config
-    mc, tc = train_cfg["model_config"], train_cfg["train_config"]
-    a = run_cfg["args"]
-    rows = [
-        ["Model", f"{run_cfg['model']} (pretrained: {Path(mc['pretrain_weights']).name})"],
-        ["Encoder", tex_escape(f"{mc['encoder']} (DINOv2, windowed), patch {mc['patch_size']}")],
-        [
-            "Decoder",
-            f"{mc['dec_layers']} layers, hidden {mc['hidden_dim']}, "
-            f"{mc['num_queries']} queries, two-stage",
-        ],
-        ["Input resolution", f"{mc['resolution']} $\\times$ {mc['resolution']} (square resize)"],
-        [
-            "Epochs",
-            f"{a['epochs']} max; early stopping patience {a['patience']} "
-            f"(min delta {tc['early_stopping_min_delta']})",
-        ],
-        [
-            "Batch",
-            f"{a['batch']} $\\times$ grad. accumulation {a['grad_accum']} "
-            f"(effective {a['batch'] * a['grad_accum']})",
-        ],
-        [
-            "Optimizer",
-            f"AdamW; lr {a['lr']:g}, encoder lr {a['lr_encoder']:g}, "
-            f"weight decay {tc['weight_decay']:g}",
-        ],
-        [
-            "LR decay",
-            f"layer-wise ViT decay {tc['lr_vit_layer_decay']}, "
-            f"component decay {tc['lr_component_decay']}",
-        ],
-        ["EMA", f"decay {tc['ema_decay']}, tau {tc['ema_tau']}"],
-        [
-            "Augmentation",
-            "RF-DETR defaults: multi-scale (per batch), scale jitter, horizontal flip",
-        ],
-        ["Gradient clipping", f"max norm {tc['clip_max_norm']}"],
-        ["Precision", "mixed (AMP, fp16 on T4)"],
-        ["Seed", str(a["seed"])],
-        ["Checkpoint selection", "best val mAP50:95 (RF-DETR built-in evaluator)"],
-    ]
-    write_table(gen / "tab_train_config.tex", "p{3.6cm}p{10.4cm}", ["Setting", "Value"], rows)
+    write_table(gen / "tab_train_config.tex", "p{3.6cm}p{10.4cm}", ["Setting", "Value"], cfg_rows)
+    write_table(gen / "tab_environment.tex", "p{3.6cm}p{10.4cm}", ["Item", "Value"], env)
 
-    s0 = sessions[0]
-    env = s0["env"]
-    rows = [
-        ["Hardware", f"Kaggle, {env['gpu']} (1 GPU used)"],
-        [
-            "Software",
-            tex_escape(
-                f"Python {env['python']}; PyTorch {env['packages']['torch']}; "
-                f"rfdetr {env['packages']['rfdetr']}; CUDA {env['cuda']}"
-            ),
-        ],
-        ["Code version", f"git commit \\texttt{{{s0['git']['commit'][:7]}}} (clean)"],
-        [
-            "Training time",
-            f"{sum(x['hours'] for x in sessions):.2f} h in {len(sessions)} session(s)",
-        ],
-        ["Epochs run", f"{train_info['n_epochs']} (early stopping)"],
-        [
-            "Best epoch",
-            f"{train_info['best_epoch']} (val mAP50:95 "
-            f"{train_info['best_val_map5095_builtin']:.3f}, built-in evaluator)",
-        ],
-        [
-            "Prediction threshold",
-            f"score $\\geq$ {metrics['val']['threshold']}, at most 300 detections per image",
-        ],
-    ]
-    write_table(gen / "tab_environment.tex", "p{3.6cm}p{10.4cm}", ["Item", "Value"], rows)
-
-    # epoch log (longtable body only)
+    # epoch log (longtable header + body)
+    # a macro: \input cannot be used inside a longtable header
+    (gen / "tab_epoch_log_header.tex").write_text(
+        r"\def\epochheader{" + " & ".join(train_info["epoch_header"]) + "}\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     body = "\n".join(" & ".join(r) + r" \\" for r in train_info["epoch_table"])
     (gen / "tab_epoch_log_rows.tex").write_text(body + "\n", encoding="utf-8", newline="\n")
 
     # numbers for inline use
     facts = {
+        "model": name,
         "metrics": {
-            s: {
-                k: metrics[s][k]
-                for k in ("P", "R", "F1", "mAP50", "mAP75", "mAP50_95", "conf_at_max_F1")
-            }
-            for s in SPLITS
+            n: {s: {key: runs[n][s][key] for key in (*keys, "conf_at_max_F1")} for s in SPLITS}
+            for n in runs
         },
-        "train": {k: v for k, v in train_info.items() if k != "epoch_table"},
+        "train": {key: v for key, v in train_info.items() if key not in ("epoch_table",)},
         "confusion_threshold": conf["thr"],
         "confusion": conf["matrices"],
         "gallery_images": gal,
@@ -711,8 +946,17 @@ def tables(
 # ----------------------------------------------------------------------------- main
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--results", type=Path, required=True)
-    ap.add_argument("--train-dir", type=Path, required=True)
+    ap.add_argument("--model", choices=MODELS, default="rfdetr")
+    ap.add_argument("--results", type=Path, required=True, help="run folder with metrics/ etc.")
+    ap.add_argument("--train-dir", type=Path, help="rfdetr: folder with metrics.csv")
+    ap.add_argument("--deim-dir", type=Path, default=Path("third_party/DEIM"))
+    ap.add_argument(
+        "--compare",
+        action="append",
+        default=[],
+        metavar="NAME=DIR",
+        help="another run of ours (DIR has metrics/{split}.json)",
+    )
     ap.add_argument("--processed", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=Path("report"))
     args = ap.parse_args(argv)
@@ -720,37 +964,64 @@ def main(argv=None):
     fig_dir, gen = args.out / "figures", args.out / "generated"
     fig_dir.mkdir(parents=True, exist_ok=True)
     gen.mkdir(parents=True, exist_ok=True)
+    name = MODELS[args.model]["name"]
 
-    metrics = {s: json.loads((args.results / "metrics" / f"{s}.json").read_text()) for s in SPLITS}
+    def read_metrics(d: Path) -> dict:
+        return {s: json.loads((d / "metrics" / f"{s}.json").read_text()) for s in SPLITS}
+
+    metrics = read_metrics(args.results)
     run_cfg = json.loads((args.results / "run_config.json").read_text())
     sessions = json.loads((args.results / "sessions.json").read_text())
-    train_cfg = json.loads((args.train_dir / "training_config.json").read_text())
-    with open(args.train_dir / "metrics.csv", newline="") as f:
-        log_rows = list(csv.DictReader(f))
+
+    print("training curves ...")
+    if args.model == "rfdetr":
+        train_cfg = json.loads((args.train_dir / "training_config.json").read_text())
+        with open(args.train_dir / "metrics.csv", newline="") as f:
+            train_info = training_rfdetr(list(csv.DictReader(f)), fig_dir)
+        cfg_rows = config_rows_rfdetr(train_cfg, run_cfg)
+    else:
+        cfg = load_deim_config(args.results, args.deim_dir)
+        log = [
+            json.loads(line)
+            for line in (args.results / "log.txt").read_text().splitlines()
+            if line.strip()
+        ]
+        train_info = training_deim(log, cfg, fig_dir)
+        selection = json.loads((args.results / "selection.json").read_text())
+        cfg_rows = config_rows_deim(cfg, run_cfg, train_info, selection)
+    env = env_rows(args.model, run_cfg, sessions, train_info, metrics["val"]["threshold"])
+
+    runs: dict[str, dict] = {}
+    colors: dict[str, str] = {}
+    for i, item in enumerate(args.compare):
+        n, d = item.split("=", 1)
+        runs[n] = read_metrics(Path(d))
+        colors[n] = ["#1f6f8b", "#3a9c6b", "#b5485d"][i % 3]
+    runs[name] = metrics
+    colors[name] = MODELS[args.model]["color"]
 
     # operating point chosen on val only (never on test)
     thr = metrics["val"]["conf_at_max_F1"]
 
-    print("training curves ...")
-    train_info = fig_training(log_rows, fig_dir)
     print("bar charts ...")
-    fig_split_bars(metrics, fig_dir)
-    fig_vs_yolo(metrics, fig_dir)
+    fig_split_bars(metrics, name, fig_dir)
+    fig_per_class_compare(runs, colors, fig_dir)
     fig_size_bins(metrics, fig_dir)
     print("PR curves ...")
     fig_pr_curves(args.processed, args.results, fig_dir)
     print("confusion matrices ...")
     mats = fig_confusion(args.processed, args.results, thr, fig_dir)
     print("galleries ...")
-    gal = {s: fig_gallery(args.processed, args.results, s, thr, fig_dir) for s in TEST_SPLITS}
+    gal = {s: fig_gallery(args.processed, args.results, s, thr, fig_dir, name) for s in TEST_SPLITS}
     print("tables ...")
     counts = class_counts(args.processed)
     tables(
         metrics,
         counts,
-        train_cfg,
-        run_cfg,
-        sessions,
+        name,
+        runs,
+        cfg_rows,
+        env,
         train_info,
         {"thr": thr, "matrices": mats},
         gal,

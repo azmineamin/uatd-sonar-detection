@@ -1,0 +1,373 @@
+% UATD sonar detection: DEIM-D-FINE-S project update (comparison with RF-DETR-S and YOLO26n).
+% Tables in generated/ and figures in figures/ are produced by
+%   python scripts/make_report_assets.py --model deim ...   (do not edit them by hand)
+% Yellow "Write this in your own words" boxes mark the text the students must write.
+% Compile with pdfLaTeX (Overleaf default) or Tectonic.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm,headheight=14pt]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.misc}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{accent}{HTML}{6A3D8F}
+\definecolor{muted}{HTML}{6B7785}
+\captionsetup{font=small,labelfont=bf}
+\setlist{nosep}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}UATD / DEIM-D-FINE-S \textbullet{} Project Update}
+\fancyhead[R]{\small\color{muted}\thepage}
+\fancyfoot[L]{\scriptsize\color{muted}Numbers generated from run \texttt{dfine\_s\_s0} by the shared evaluator}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+
+% Placeholder for text the students write themselves (CLAUDE.md rule 4).
+\newtcolorbox{writehere}{enhanced,breakable,colback=yellow!8,colframe=orange!75!black,
+  fonttitle=\bfseries\small,title={Write this in your own words},fontupper=\small}
+
+\newcommand{\gentab}[1]{\input{generated/#1}}
+
+\begin{document}
+
+% ------------------------------------------------------------------ title page
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+% \includegraphics[width=2.6cm]{figures/nsu_logo.png}\\[0.6cm]  % add the logo file to use it
+{\Large\bfseries North South University}\\[2pt]
+Department of Electrical \& Computer Engineering\\[1.4cm]
+\rule{\linewidth}{0.4pt}\\[0.4cm]
+{\Huge\bfseries Project Update}\\[0.3cm]
+\rule{\linewidth}{0.4pt}\\[1.2cm]
+{\LARGE\bfseries Underwater Sonar Object Detection:\\[4pt] DEIM-D-FINE-S compared with RF-DETR}\\[1.2cm]
+\begin{tabular}{rl}
+\textbf{Course} & CSE 499A, Section 12\\
+\textbf{Supervisor} & Dr.\ Riasat Khan
+\end{tabular}\\[1.4cm]
+\begin{tabular}{lll}
+\toprule
+\textbf{Student Name} & \textbf{Student ID} & \textbf{Email}\\
+\midrule
+Walidur Rahman & 231 1712 642 & walidur.rahman01@northsouth.edu\\
+Mridha Fahad Hossain & 231 2199 042 & mridha.hossain@northsouth.edu\\
+Nafsin Nasama Salmee & 231 1776 642 & nafsin.salmee@northsouth.edu\\
+Md.\ Azmine Amin Mormo & 231 2318 042 & azmine.mormo@northsouth.edu\\
+\bottomrule
+\end{tabular}\\[1.4cm]
+\textbf{Submission Date:} \today
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ------------------------------------------------------------------ 1 overview
+\section{Overview}
+\subsection{Executive summary}
+\begin{writehere}
+Points to cover:
+\begin{itemize}
+  \item Second detector on the same fixed split and shared evaluator: DEIM (Huang et al., CVPR 2025) training method on the D-FINE detector (Peng et al., ICLR 2025), small model, fine-tuned from COCO weights.
+  \item Role: comparison row. DEIM/D-FINE come from the RT-DETR codebase, which a classmate works on; RF-DETR stays the main pipeline.
+  \item Why chosen: our RF-DETR results showed localisation as the main gap (test mAP75 0.26 / 0.25); D-FINE models box edges as probability distributions, DEIM adds more positive matches per image (UATD has 1--3 objects per image).
+  \item Headline: test mAP50:95 0.376 / 0.383 (RF-DETR 0.368 / 0.363, YOLO26n 0.329 / 0.337); mAP75 0.290 / 0.286 (RF-DETR 0.261 / 0.246); mAP50 about equal (0.809 / 0.833 vs 0.815 / 0.825).
+  \item Remaining problems: cube (AP50 0.61 on both tests), cage classes, tiny boxes on test1.
+\end{itemize}
+\end{writehere}
+
+\begin{table}[H]\centering
+\caption{Headline detection performance of DEIM-D-FINE-S (mAP at IoU 0.5).}
+\gentab{tab_headline}
+\end{table}
+
+\begin{table}[H]\centering
+\caption{All models on the same split. $^\dagger$YOLO26n values are copied from the original notebook (Ultralytics validator, input 640); RF-DETR-S (input 512) and DEIM-D-FINE-S (input 640) come from our shared evaluator (pycocotools + Ultralytics-definition P/R/F1). Best per split and column in bold.}
+\label{tab:compare}
+\gentab{tab_compare}
+\end{table}
+
+\subsection{Objectives}
+\begin{writehere}
+Points to cover: add a strong recent real-time DETR as a comparison row; keep everything else identical (split, val-only selection, effective batch 16, seed 0, shared evaluator); test whether a detector built for box precision closes the mAP75 gap; feed the comparison into the error analysis and the choice of the tiny-object method (roadmap steps 7--8).
+\end{writehere}
+
+% ------------------------------------------------------------------ 2 dataset
+\section{Dataset}
+The dataset, fixed split and cleaning are identical to the RF-DETR report.
+
+\begin{table}[H]\centering
+\caption{Images and objects per split after cleaning.}
+\gentab{tab_dataset}
+\end{table}
+
+\begin{table}[H]\centering
+\caption{Objects per class and split.}
+\gentab{tab_class_counts}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.49\linewidth]{figures/box_area_by_split.png}\hfill
+\includegraphics[width=0.49\linewidth]{figures/box_area_per_class_train.png}
+\caption{Box area per split and per class (train). The dashed line marks the tiny threshold (2300\,px$^2$, the 25th percentile of train box areas), frozen before any model was evaluated.}
+\end{figure}
+
+% ------------------------------------------------------------------ 3 methodology
+\section{Methodology}
+\subsection{Pipeline}
+\begin{figure}[H]\centering
+\begin{tikzpicture}[
+  node distance=5mm,
+  box/.style={draw=accent!60,fill=accent!6,rounded corners=2pt,minimum width=11.5cm,align=center,font=\small,inner sep=5pt},
+  arr/.style={-{Stealth[length=2mm]},accent,thick}]
+\node[box] (a) {\textbf{Fixed split + lossless PNG + COCO JSON} (same files as RF-DETR)};
+\node[box,below=of a] (b) {\textbf{Official DEIM repo}, pinned commit, unmodified; fine-tuned from the official COCO checkpoint};
+\node[box,below=of b] (c) {\textbf{Training} (Kaggle T4): 60 epochs, batch 16, 640\,px, four augmentation phases};
+\node[box,below=of c] (d) {\textbf{Best checkpoint per phase} kept by DEIM on val (\texttt{best\_stg1}, \texttt{best\_stg2})};
+\node[box,below=of d] (e) {\textbf{Final choice on val} with the shared evaluator (highest val mAP50:95)};
+\node[box,below=of e] (f) {\textbf{Prediction} on val, test1, test2 (score $\geq$ 0.001, $\leq$ 300 per image)};
+\node[box,below=of f] (g) {\textbf{Shared evaluator} (\texttt{uatd.eval\_coco}), identical to RF-DETR};
+\foreach \u/\v in {a/b,b/c,c/d,d/e,e/f,f/g} \draw[arr] (\u) -- (\v);
+\end{tikzpicture}
+\caption{DEIM-D-FINE-S pipeline. Test1 and test2 enter only at the prediction step.}
+\end{figure}
+
+\subsection{DEIM-D-FINE}
+\begin{writehere}
+Points to cover (cite both papers):
+\begin{itemize}
+  \item D-FINE (ICLR 2025): real-time DETR; HGNetv2 CNN backbone, hybrid encoder, 3-layer decoder, 300 queries; predicts each box edge as a probability distribution over 32 bins and refines it layer by layer (Fine-grained Distribution Refinement, FGL loss); distils the last layer's localisation into earlier layers (GO-LSD, DDF loss).
+  \item DEIM (CVPR 2025): Dense one-to-one matching (Mosaic + MixUp put more objects in each image, so more positive matches) and the Matchability-Aware Loss (MAL); designed for fast convergence.
+  \item Set-based matching, so no NMS.
+  \item Relation to RT-DETR: same codebase family (classmate's topic), so used only as a comparison row.
+\end{itemize}
+\end{writehere}
+
+\begin{table}[H]\centering
+\caption{DEIM-D-FINE-S configuration, read from the fully merged config that ran (official S config + \texttt{configs/deim/uatd\_deim\_dfine\_s.yml}).}
+\gentab{tab_train_config}
+\end{table}
+
+\begin{writehere}
+Points to cover on the settings we changed and why (all fixed before training, none tuned on test): 60-epoch recipe from the DEIM authors instead of 132 epochs (fine-tuning from COCO weights; 132 epochs $\approx$ 20 h on a T4); batch 16 instead of 32 to match RF-DETR, learning rates halved by the repo's linear rule; EMA and warm-up lengths kept the same in epochs as the official recipe (UATD epoch = 427 iterations vs 3697 on COCO), otherwise the EMA weights used for selection would average over $\sim$25--50 epochs.
+\end{writehere}
+
+\subsection{Evaluation protocol}
+Identical to the RF-DETR report: pycocotools COCO metrics, Ultralytics-definition P/R/F1 (IoU 0.5, at the confidence of maximum mean F1 on each split), per-class AP, and AP on the frozen tiny / non-tiny bins.
+
+% ------------------------------------------------------------------ 4 training
+\section{Training}
+\begin{table}[H]\centering
+\caption{Execution environment and run summary.}
+\gentab{tab_environment}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_training_curves.png}
+\caption{Training losses and validation metrics per epoch (DEIM's built-in evaluator on the EMA weights; used only for monitoring and checkpoint selection). Purple band: Mosaic + MixUp phase (epochs 5--34). Orange band: final no-augmentation phase (59--60). Dashed line: best val epoch.}
+\end{figure}
+
+\begin{writehere}
+Points to cover: 60 epochs in 8.5\,h, one session; loss steps up at epoch 5 (Mosaic/MixUp start) and down at 35 (they stop) and 59 (augmentation stops); val mAP50:95 still rising slowly until the end (0.59), mAP75 rises most; best val epoch 59 (final phase), and \texttt{best\_stg2} also wins on val with the shared evaluator (0.592 vs 0.591); full log in Appendix~\ref{app:epochs}.
+\end{writehere}
+
+% ------------------------------------------------------------------ 5 evaluation
+\section{Evaluation}
+\subsection{Overall results}
+\begin{table}[H]\centering
+\caption{DEIM-D-FINE-S overall performance (shared evaluator).}
+\gentab{tab_overall}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_split_comparison.png}
+\caption{Validation versus held-out performance.}
+\end{figure}
+
+\begin{writehere}
+Points to cover (Table~\ref{tab:compare}): best mAP50:95 and mAP75 of the three models on both test sets (mAP75 +0.029 / +0.040 over RF-DETR, +0.082 / +0.082 over YOLO26n); mAP50 and P slightly below RF-DETR on test1, mAP50 higher on test2; so the gain is in box precision, not in finding more objects; same val$\rightarrow$test drop as the other models; one seed only, so small differences ($<$0.01) are not conclusive yet.
+\end{writehere}
+
+\subsection{Per-class results}
+\begin{table}[H]\centering
+\caption{Per-class results on Test 1.}
+\gentab{tab_per_class_test1}
+\end{table}
+
+\begin{table}[H]\centering
+\caption{Per-class results on Test 2. Metal bucket has only 5 GT boxes.}
+\gentab{tab_per_class_test2}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Per-class AP50 on the test sets. YOLO26n: notebook (Ultralytics validator); RF-DETR-S and DEIM-D-FINE-S: shared evaluator. Best per class and split in bold.}
+\resizebox{\linewidth}{!}{\gentab{tab_per_class_cmp_ap50}}
+\end{table}
+
+\begin{table}[H]\centering\small
+\caption{Per-class AP50:95 on the test sets, same models.}
+\resizebox{\linewidth}{!}{\gentab{tab_per_class_cmp_ap5095}}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_per_class_compare.png}
+\caption{Per-class AP50 on Test 1 and Test 2 for the three models.}
+\end{figure}
+
+\begin{writehere}
+Points to cover: DEIM has the best AP50:95 on 8 of 10 classes in test1 and 9 of 10 in test2; circle cage improves most at AP50 (0.573 / 0.609 vs 0.551 / 0.546 for RF-DETR); cube is the clear exception, lowest of the three models (AP50 0.612 / 0.606 vs YOLO26n 0.708 / 0.699); square cage about equal to RF-DETR; metal bucket has 6 / 5 test boxes, so its AP is unreliable.
+\end{writehere}
+
+\subsection{Precision--recall curves}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_pr_curves.png}
+\caption{Per-class precision--recall curves at IoU 0.5 (pycocotools, all areas). Legend values are AP50.}
+\end{figure}
+
+\subsection{Confusion between classes}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_confusion_test.png}
+\caption{Confusion matrices on the test sets. Detections with score $\geq$ 0.499 (the max-F1 confidence chosen on \emph{validation}), class-agnostic one-to-one matching at IoU $\geq$ 0.5. Rows: predicted class; columns: true class; ``background'' = unmatched.}
+\end{figure}
+
+\begin{writehere}
+Points to cover: square cage predicted as cube 50 times in each test set, the same as RF-DETR (51 / 49), so this confusion is shared by both DETRs and explains cube's low precision; circle cage predicted as ball more often than with RF-DETR (25 / 32 vs 20 / 20) and as square cage 15 / 14; missed objects 84 / 72, unmatched detections 101 / 100 (RF-DETR: 80 / 76 and 76 / 86).
+\end{writehere}
+
+\subsection{Size-stratified results}
+\begin{table}[H]\centering
+\caption{DEIM-D-FINE-S AP on the UATD-relative size bins (tiny = area $\leq$ 2300\,px$^2$).}
+\resizebox{\linewidth}{!}{\gentab{tab_size_bins}}
+\end{table}
+
+\begin{table}[H]\centering
+\caption{Tiny versus non-tiny AP50:95 on the test sets, our two models (the YOLO26n notebook has no size bins). Best per column in bold.}
+\gentab{tab_size_cmp}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.6\linewidth]{figures/fig_size_bins.png}
+\caption{DEIM-D-FINE-S tiny versus non-tiny AP50:95.}
+\end{figure}
+
+\begin{table}[H]\centering
+\caption{Complete COCO-style statistics (pycocotools).}
+\gentab{tab_coco_detail}
+\end{table}
+
+\begin{writehere}
+Points to cover: DEIM is better on non-tiny boxes (0.386 / 0.387 vs 0.375 / 0.365) but worse on tiny boxes, clearly on test1 (0.282 vs 0.323) and slightly on test2 (0.251 vs 0.259); so its overall gain comes from larger objects; tiny objects remain the open problem for both, which supports the tiny-object track (roadmap step 8); possible factor to check later: Mosaic shrinks objects during training (320\,px tiles).
+\end{writehere}
+
+\subsection{Qualitative results}
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_gallery_test1.jpg}
+\caption{Test 1 examples (same 4 images as in the RF-DETR report, seed 42). Green: ground truth. Yellow: DEIM-D-FINE-S detections with score $\geq$ 0.499. Images are shown without contrast change.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{figures/fig_gallery_test2.jpg}
+\caption{Test 2 examples (4 images, seed 42), same convention.}
+\end{figure}
+
+% ------------------------------------------------------------------ 6 efficiency
+\section{Efficiency}\label{sec:eff}
+\begin{table}[H]\centering
+\caption{Model complexity and latency. GFLOPs and latency are roadmap step 4 and not measured yet.}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Input & Params (M) & GFLOPs & T4 FP16 (ms) & T4 FP32 (ms)\\
+\midrule
+YOLO26n$^\dagger$ & 640 & 2.51 & 5.9 & -- & --\\
+RF-DETR-S & 512 & pending & pending & pending & pending\\
+DEIM-D-FINE-S & 640 & 10.23 & pending & pending & pending\\
+\bottomrule
+\end{tabular}\\[2pt]
+{\footnotesize $^\dagger$From the notebook's training model summary. DEIM parameter count from its training log.}
+\end{table}
+
+% ------------------------------------------------------------------ 7 discussion
+\section{Discussion}
+\subsection{What the comparison shows}
+\begin{writehere}
+Your interpretation of the comparison above.
+\end{writehere}
+\subsection{Limitations}
+\begin{writehere}
+Points to cover: one seed per model; different input sizes (512 vs 640) and training recipes, each the model's own; DEIM is a comparison row only (RT-DETR lineage); YOLO26n numbers from Ultralytics' validator, not re-scored with our evaluator; efficiency not measured yet; val shares recording sessions with train, so val is optimistic.
+\end{writehere}
+\subsection{Next steps}
+\begin{table}[H]\centering
+\caption{Planned work (CLAUDE.md roadmap).}
+\begin{tabular}{p{4.2cm}p{9.8cm}}
+\toprule
+Step & Work\\
+\midrule
+4 Efficiency & params, GFLOPs, batch-1 T4 latency (FP16 / FP32) for every model\\
+5 Main pipeline & RF-DETR-N; RF-DETR at higher input resolution\\
+6 Baselines & YOLOv12-n/s, FBRT-YOLO, Dome-DETR on the same split and evaluator\\
+7 Error analysis & square cage $\rightarrow$ cube confusion (both DETRs), tiny-box recall, mAP50--mAP75 gap\\
+8 Method & one tiny-object idea from an eligible venue on top of RF-DETR, with ablations\\
+9 Final runs & 3 seeds for main models, final tables and figures\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ------------------------------------------------------------------ appendix
+\appendix
+\section{Epoch log}\label{app:epochs}
+\input{generated/tab_epoch_log_header}
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{rrrrrrrrrr}
+\caption{Per-epoch training losses (final decoder layer) and validation metrics (DEIM built-in evaluator, EMA weights).}\\
+\toprule
+\epochheader\\
+\midrule
+\endfirsthead
+\toprule
+\epochheader\\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\input{generated/tab_epoch_log_rows}
+\end{longtable}
+}
+
+\section{Reproducibility}
+\begin{table}[H]\centering
+\caption{Where everything lives in the repository.}
+\begin{tabular}{p{5cm}p{9cm}}
+\toprule
+Item & Location\\
+\midrule
+Code & \url{https://github.com/azmineamin/uatd-sonar-detection}\\
+DEIM config & \texttt{configs/deim/uatd\_deim\_dfine\_s.yml}\\
+Training & \texttt{scripts/train\_deim.py}, \texttt{notebooks/kaggle\_deim.ipynb}\\
+Prediction + selection & \texttt{scripts/predict\_deim.py} (\texttt{selection.json})\\
+Shared evaluator & \texttt{src/uatd/eval\_coco.py}\\
+Run files & \texttt{results/deim/dfine\_s\_s0/}\\
+This report's assets & \texttt{scripts/make\_report\_assets.py --model deim}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

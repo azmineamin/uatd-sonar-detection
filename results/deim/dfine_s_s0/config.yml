@@ -1,0 +1,51 @@
+__include__:
+- /kaggle/working/third_party/DEIM/configs/deim_dfine/deim_hgnetv2_s_coco.yml
+output_dir: /kaggle/working/runs/deim/dfine_s_s0
+num_classes: 10
+remap_mscoco_category: false
+train_dataloader:
+  dataset:
+    img_folder: /tmp/uatd_processed/images
+    ann_file: /tmp/uatd_processed/coco/train.json
+    transforms:
+      policy:
+        epoch:
+        - 4
+        - 34
+        - 58
+  collate_fn:
+    mixup_epochs:
+    - 4
+    - 34
+    stop_epoch: 58
+    ema_restart_decay: 0.9991
+  total_batch_size: 16
+  num_workers: 4
+val_dataloader:
+  dataset:
+    img_folder: /tmp/uatd_processed/images
+    ann_file: /tmp/uatd_processed/coco/val.json
+  total_batch_size: 32
+  num_workers: 4
+epoches: 60
+flat_epoch: 34
+no_aug_epoch: 2
+optimizer:
+  type: AdamW
+  params:
+  - params: ^(?=.*backbone)(?!.*bn).*$
+    lr: 0.0001
+  - params: ^(?=.*(?:norm|bn)).*$
+    weight_decay: 0.0
+  lr: 0.0002
+  betas:
+  - 0.9
+  - 0.999
+  weight_decay: 0.0001
+ema:
+  type: ModelEMA
+  decay: 0.9991
+  warmups: 120
+  start: 0
+warmup_iter: 230
+checkpoint_freq: 12

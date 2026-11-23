@@ -1,0 +1,40 @@
+[
+  {
+    "start": "2026-11-22T21:33:06+00:00",
+    "resume_from": null,
+    "command": [
+      "/usr/bin/python3",
+      "-m",
+      "uatd.deim_compat",
+      "/kaggle/working/third_party/DEIM",
+      "-c",
+      "/kaggle/working/runs/deim/dfine_s_s0/config.yml",
+      "--seed",
+      "0",
+      "-d",
+      "cuda",
+      "-t",
+      "/kaggle/working/third_party/DEIM/weights/deim_dfine_hgnetv2_s_coco_120e.pth",
+      "--use-amp"
+    ],
+    "git": {
+      "commit": "20562246cc27fe3130c55980f19eee8c5229884f",
+      "dirty": false
+    },
+    "env": {
+      "python": "3.13.16",
+      "platform": "Linux-6.18.55+-x86_64-with-glibc2.39",
+      "packages": {
+        "torch": "2.11.0+cu130",
+        "torchvision": "0.26.0+cu130"
+      },
+      "cuda_available": true,
+      "gpu": "Tesla T4",
+      "cuda": "13.0"
+    },
+    "end": "2026-11-23T06:01:55+00:00",
+    "hours": 8.480259896914164,
+    "result": "finished",
+    "epochs_done": 60
+  }
+]
